@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>UNO Ultimate</title>
+    <title>UNO Ultimate Fixed</title>
     <style>
         /* === 基礎樣式 === */
         body { 
@@ -23,6 +23,14 @@
             cursor: pointer; transition: transform 0.1s;
         }
         .color-btn:active { transform: scale(0.9); }
+        
+        /* 禁用狀態的顏色按鈕 (新增) */
+        .color-btn.disabled {
+            opacity: 0.1;
+            pointer-events: none;
+            filter: grayscale(100%);
+        }
+
         .btn-red { background: #ff5555; box-shadow: 0 0 20px #ff5555; }
         .btn-blue { background: #5555ff; box-shadow: 0 0 20px #5555ff; }
         .btn-green { background: #55aa55; box-shadow: 0 0 20px #55aa55; }
@@ -144,10 +152,10 @@
     <div id="color-modal">
         <h2 style="margin-bottom: 30px; font-size: 28px;">請選擇主要顏色</h2>
         <div id="color-options">
-            <div class="color-btn btn-red" onclick="selectColor('red')"></div>
-            <div class="color-btn btn-blue" onclick="selectColor('blue')"></div>
-            <div class="color-btn btn-green" onclick="selectColor('green')"></div>
-            <div class="color-btn btn-yellow" onclick="selectColor('yellow')"></div>
+            <div id="modal-btn-red" class="color-btn btn-red" onclick="selectColor('red')"></div>
+            <div id="modal-btn-blue" class="color-btn btn-blue" onclick="selectColor('blue')"></div>
+            <div id="modal-btn-green" class="color-btn btn-green" onclick="selectColor('green')"></div>
+            <div id="modal-btn-yellow" class="color-btn btn-yellow" onclick="selectColor('yellow')"></div>
         </div>
         <button onclick="closeColorModal()" style="margin-top: 30px; background: #7f8fa6; padding:10px 20px;">取消</button>
     </div>
@@ -259,13 +267,26 @@
             if (selectedCards.size === 0) return;
             const cardIds = Array.from(selectedCards);
             
+            // 檢查是否含有黑牌 (Wild / Draw4)
+            const hasBlack = hasBlackCard(cardIds);
+            
             // 如果出多張牌，或者有黑色牌，強制彈出選色
-            const needsColor = cardIds.length > 1 || hasBlackCard(cardIds);
+            const needsColor = cardIds.length > 1 || hasBlack;
 
             if (needsColor) {
                 pendingPlayData = cardIds;
-                document.getElementById('color-modal').style.display = 'flex';
+                
+                // === 新增：過濾顏色邏輯 ===
+                // 如果有黑牌，開放所有顏色
+                // 如果沒有黑牌，只開放已選牌的顏色 (例如紅+藍，只開放紅和藍)
+                let allowedColors = ['red', 'blue', 'green', 'yellow'];
+                if (!hasBlack) {
+                    allowedColors = getUniqueColors(cardIds);
+                }
+                
+                showColorModal(allowedColors);
             } else {
+                // 單張普通牌，直接出
                 sendPlay(cardIds, null);
             }
         }
@@ -276,6 +297,29 @@
                 const c = window.myHandData.find(x => x.id === id);
                 return c && c.color === 'black';
             });
+        }
+        
+        function getUniqueColors(ids) {
+            if (!window.myHandData) return [];
+            const colors = new Set();
+            ids.forEach(id => {
+                const c = window.myHandData.find(x => x.id === id);
+                if (c && c.color !== 'black') colors.add(c.color);
+            });
+            return Array.from(colors);
+        }
+
+        function showColorModal(allowedColors) {
+            const all = ['red', 'blue', 'green', 'yellow'];
+            all.forEach(c => {
+                const btn = document.getElementById(`modal-btn-${c}`);
+                if (allowedColors.includes(c)) {
+                    btn.classList.remove('disabled');
+                } else {
+                    btn.classList.add('disabled');
+                }
+            });
+            document.getElementById('color-modal').style.display = 'flex';
         }
 
         function selectColor(color) {
