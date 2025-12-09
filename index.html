@@ -3,15 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>UNO Ultimate Fixed</title>
+    <title>UNO Ultimate Fixed v2</title>
     <style>
-        /* === 基礎樣式 === */
         body { 
             font-family: 'Arial', sans-serif; background: #1e272e; color: white; margin: 0; 
             display: flex; flex-direction: column; height: 100vh; overflow: hidden;
         }
 
-        /* === 顏色選擇 Modal === */
         #color-modal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.9); z-index: 300;
@@ -23,20 +21,13 @@
             cursor: pointer; transition: transform 0.1s;
         }
         .color-btn:active { transform: scale(0.9); }
-        
-        /* 禁用狀態的顏色按鈕 (新增) */
-        .color-btn.disabled {
-            opacity: 0.1;
-            pointer-events: none;
-            filter: grayscale(100%);
-        }
+        .color-btn.disabled { opacity: 0.1; pointer-events: none; filter: grayscale(100%); }
 
         .btn-red { background: #ff5555; box-shadow: 0 0 20px #ff5555; }
         .btn-blue { background: #5555ff; box-shadow: 0 0 20px #5555ff; }
         .btn-green { background: #55aa55; box-shadow: 0 0 20px #55aa55; }
         .btn-yellow { background: #ffaa00; box-shadow: 0 0 20px #ffaa00; }
 
-        /* === 通知條 === */
         #notification-bar {
             position: fixed; top: 10%; left: 50%; transform: translateX(-50%);
             background: rgba(255, 165, 2, 0.95); color: black; padding: 12px 25px;
@@ -44,7 +35,6 @@
             display: none; box-shadow: 0 5px 15px rgba(0,0,0,0.5); white-space: nowrap;
         }
 
-        /* === 登入大廳 === */
         #login-screen { 
             position: absolute; top:0; left:0; width:100%; height:100%; 
             background: #2f3640; z-index:99; display:flex; flex-direction:column; 
@@ -62,7 +52,6 @@
         button:active { transform: scale(0.95); }
         #leave-btn { background: #e74c3c; margin-left: 10px; display: none; }
         
-        /* 房間列表 */
         #lobby-list {
             margin-top: 30px; width: 320px; max-height: 200px; overflow-y: auto;
             background: rgba(0,0,0,0.3); border-radius: 10px; padding: 10px;
@@ -71,15 +60,11 @@
             background: #34495e; margin: 8px 0; padding: 12px; border-radius: 8px; cursor: pointer;
             display: flex; justify-content: space-between; align-items: center; transition: 0.2s;
         }
-        .room-item:hover { background: #46637f; }
-        .room-item.full { opacity: 0.5; cursor: not-allowed; }
         .room-status { font-size: 12px; padding: 4px 10px; border-radius: 12px; }
         .status-wait { background: #2ecc71; color: white; }
         .status-play { background: #e74c3c; color: white; }
 
-        /* === 遊戲區 === */
         #game-screen { display: none; flex-direction: column; height: 100%; }
-        
         #opponents { 
             flex:1; display:flex; justify-content:center; align-items:center; gap:10px; 
             padding:10px; background:#2f3640; flex-wrap: wrap; overflow-y: auto; 
@@ -96,10 +81,7 @@
         #my-area { flex:1.5; background:#191f26; padding:10px; display:flex; flex-direction:column; justify-content:flex-end; position: relative;}
         #my-hand { display:flex; overflow-x:auto; padding:10px; gap:-15px; height: 160px; align-items: center; transition: opacity 0.2s;}
         
-        /* 鎖定狀態 */
         #my-hand.processing { opacity: 0.5; pointer-events: none; }
-
-        /* 選牌特效 */
         .card.selected { 
             transform: translateY(-40px) !important; 
             border-color: #00ff00 !important; 
@@ -107,7 +89,6 @@
             z-index: 200; 
         }
 
-        /* 確認出牌按鈕 */
         #play-action-btn {
             position: absolute; bottom: 200px; left: 50%; transform: translateX(-50%);
             background: #2ecc71; color: white; padding: 15px 40px; font-size: 22px;
@@ -116,7 +97,6 @@
         }
         #play-action-btn:active { transform: translateX(-50%) scale(0.95); }
 
-        /* === 卡牌樣式 === */
         .card {
             width: 90px; height: 135px; border-radius: 12px;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
@@ -143,7 +123,14 @@
         }
 
         #status-bar { text-align: center; font-size: 20px; margin-bottom: 10px; min-height: 30px; font-weight: bold;}
-        .current-color-hint { position: absolute; bottom: -50px; background: rgba(0,0,0,0.8); padding: 8px 20px; border-radius: 20px; font-size: 16px; border: 1px solid white;}
+        
+        /* 顏色提示優化 */
+        .current-color-hint { 
+            position: absolute; bottom: -50px; 
+            background: rgba(0,0,0,0.8); padding: 8px 20px; 
+            border-radius: 20px; font-size: 18px; border: 2px solid white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5); font-weight: bold;
+        }
         #room-info { position: absolute; top: 15px; right: 15px; font-size: 16px; color: #7f8fa6; font-weight: bold; }
     </style>
 </head>
@@ -190,7 +177,6 @@
         
         <div id="center">
             <div id="direction-indicator">順時針 ↻</div>
-            
             <div class="card back" onclick="drawCardAction()">
                 PASS
                 <small style="font-size: 12px; margin-top: 5px; color: #aaa; text-shadow:none">(抽牌)</small>
@@ -215,12 +201,9 @@
         let socket = null;
         let myId = null;
         let isProcessing = false;
-        
-        // 多選邏輯
         let selectedCards = new Set();
         let pendingPlayData = null;
 
-        // === 按鈕功能 ===
         function submitJoin() {
             if(!socket) return alert("尚未連接到伺服器");
             const roomId = document.getElementById('room-id').value.trim();
@@ -239,10 +222,8 @@
             }
         }
 
-        // === 選牌與出牌 ===
         function toggleCardSelection(cardId, element) {
             if (isProcessing) return;
-            
             if (selectedCards.has(cardId)) {
                 selectedCards.delete(cardId);
                 element.classList.remove('selected');
@@ -266,8 +247,6 @@
         function confirmPlay() {
             if (selectedCards.size === 0) return;
             const cardIds = Array.from(selectedCards);
-            
-            // 檢查是否含有黑牌 (Wild / Draw4)
             const hasBlack = hasBlackCard(cardIds);
             
             // 如果出多張牌，或者有黑色牌，強制彈出選色
@@ -275,18 +254,13 @@
 
             if (needsColor) {
                 pendingPlayData = cardIds;
-                
-                // === 新增：過濾顏色邏輯 ===
-                // 如果有黑牌，開放所有顏色
-                // 如果沒有黑牌，只開放已選牌的顏色 (例如紅+藍，只開放紅和藍)
+                // 如果沒有黑牌，只開放已選牌的顏色
                 let allowedColors = ['red', 'blue', 'green', 'yellow'];
                 if (!hasBlack) {
                     allowedColors = getUniqueColors(cardIds);
                 }
-                
                 showColorModal(allowedColors);
             } else {
-                // 單張普通牌，直接出
                 sendPlay(cardIds, null);
             }
         }
@@ -359,21 +333,18 @@
             setTimeout(() => input.style.backgroundColor = '#fff', 200);
         }
 
-        // === Socket 連接 ===
         try { socket = io('https://uno.ttctv-105.cc'); } catch (e) {
             document.getElementById('lobby-list').innerHTML = '<div style="color:red">無法連接伺服器</div>';
         }
 
         if (socket) {
             socket.on('connect', () => { myId = socket.id; });
-            
             socket.on('joinSuccess', (roomId) => {
                 document.getElementById('join-form').style.display = 'none';
                 document.getElementById('wait-msg').style.display = 'block';
                 document.getElementById('leave-btn').style.display = 'inline-block';
                 document.getElementById('current-room-display').innerText = roomId;
             });
-
             socket.on('leftGameSuccess', () => {
                 document.getElementById('join-form').style.display = 'flex';
                 document.getElementById('wait-msg').style.display = 'none';
@@ -384,7 +355,6 @@
                 selectedCards.clear(); updatePlayButton();
                 unlockInterface();
             });
-
             socket.on('roomListUpdate', (list) => {
                 const container = document.getElementById('lobby-list');
                 container.innerHTML = '';
@@ -400,17 +370,10 @@
                     if (!isFull && !isPlaying) div.onclick = () => selectRoom(room.id);
                     const statusClass = isPlaying ? 'status-play' : 'status-wait';
                     const statusText = isPlaying ? '遊戲中' : '等待中';
-                    div.innerHTML = `
-                        <div style="font-weight:bold; font-size:16px;">🏠 ${room.id}</div>
-                        <div style="display:flex; align-items:center; gap:10px;">
-                            <span class="room-status ${statusClass}">${statusText}</span>
-                            <span>👤 ${room.count}/10</span>
-                        </div>
-                    `;
+                    div.innerHTML = `<div>🏠 ${room.id} <span class="room-status ${statusClass}">${statusText}</span></div><div style="font-size:12px">👤 ${room.count}/10</div>`;
                     container.appendChild(div);
                 });
             });
-
             socket.on('updatePlayerList', (players) => {
                 const msgEl = document.getElementById('wait-msg');
                 if(msgEl) msgEl.innerText = `房間人數: ${players.map(p=>p.name).join(', ')} (${players.length}/10)`;
@@ -418,14 +381,12 @@
                 if(players.length >= 2 && btn) btn.style.display = 'inline-block';
                 else if(btn) btn.style.display = 'none';
             });
-
             socket.on('notification', (msg) => {
                 const bar = document.getElementById('notification-bar');
                 bar.innerText = msg;
                 bar.style.display = 'block';
                 setTimeout(() => { bar.style.display = 'none'; }, 2000);
             });
-
             socket.on('gameStateUpdate', (state) => {
                 unlockInterface();
                 document.getElementById('login-screen').style.display = 'none';
@@ -438,7 +399,6 @@
                 statusEl.style.color = isMyTurn ? "#f1c40f" : "#aaa";
                 document.getElementById('direction-indicator').innerText = state.direction === 1 ? "順時針 ↻" : "逆時針 ↺";
             });
-
             socket.on('yourHand', (hand) => {
                 window.myHandData = hand;
                 const div = document.getElementById('my-hand');
@@ -451,12 +411,10 @@
                 });
                 updatePlayButton();
             });
-
             socket.on('gameOver', (msg) => { alert(msg); location.reload(); });
             socket.on('errorMsg', (msg) => { alert(msg); unlockInterface(); });
         }
 
-        // === 渲染函數 ===
         function createCardEl(c) {
             const div = document.createElement('div');
             div.className = `card ${c.color}`;
@@ -471,16 +429,22 @@
             return div;
         }
 
+        // === 核心修復：renderDiscard ===
         function renderDiscard(card) {
             const pile = document.getElementById('discard');
             pile.className = `card ${card.color}`;
-            if(card.color === 'black' && card.tempColor) {
-                pile.style.borderColor = getHexColor(card.tempColor);
-                pile.style.boxShadow = `0 0 20px ${getHexColor(card.tempColor)}`;
+            
+            // 決定顯示顏色：如果有 tempColor (剛轉色) 或一般牌顏色
+            let activeColor = card.tempColor || (card.color !== 'black' ? card.color : null);
+
+            if (activeColor) {
+                pile.style.borderColor = getHexColor(activeColor);
+                pile.style.boxShadow = `0 0 20px ${getHexColor(activeColor)}`;
             } else {
                 pile.style.borderColor = 'white';
                 pile.style.boxShadow = '3px 3px 8px rgba(0,0,0,0.6)';
             }
+
             let display = card.value;
             let sub = "";
             if(card.type === 'draw2') display = '+2';
@@ -491,10 +455,10 @@
             pile.innerHTML = `<div>${display}</div>${sub ? `<small>${sub}</small>` : ''}`;
             
             const hint = document.getElementById('color-hint');
-            if (card.color === 'black' && card.tempColor) {
+            if (activeColor) {
                 hint.style.display = 'block';
-                hint.innerText = `已轉為: ${getColorName(card.tempColor)}`;
-                hint.style.color = getHexColor(card.tempColor);
+                hint.innerText = `當前顏色: ${getColorName(activeColor)}`;
+                hint.style.color = getHexColor(activeColor);
             } else {
                 hint.style.display = 'none';
             }
