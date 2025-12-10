@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>UNO Final Rule - Forced Color Change</title>
+    <title>UNO Final Rule - Smart Color</title>
     <style>
         body { font-family: 'Arial', sans-serif; background: #1e272e; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
@@ -11,8 +11,7 @@
         #color-options { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         .color-btn { width: 120px; height: 120px; border-radius: 20px; border: 5px solid rgba(255,255,255,0.8); cursor: pointer; transition: transform 0.1s; }
         .color-btn:active { transform: scale(0.9); }
-        
-        /* === 關鍵樣式：被禁用的顏色 === */
+        /* 禁用狀態：變灰且不能點擊 */
         .color-btn.disabled { opacity: 0.1; pointer-events: none; filter: grayscale(100%); cursor: not-allowed; }
         
         .btn-red { background: #ff5555; } .btn-blue { background: #5555ff; } .btn-green { background: #55aa55; } .btn-yellow { background: #ffaa00; }
@@ -164,8 +163,7 @@
         let pendingPlayData = null;
         let unreadCount = 0;
         let lastActivePlayer = null;
-        // === 修改點 1: 新增全域變數記錄桌面顏色 ===
-        let currentActiveColor = null; 
+        let currentActiveColor = null; // 記錄桌面顏色
 
         // === 使用本地 ding.mp3 ===
         const dingSound = new Audio("ding.mp3");
@@ -282,11 +280,13 @@
             }
         }
 
+        // === 修改重點：優化出牌判定邏輯 ===
         function confirmPlay() {
             if (selectedCards.size === 0) return;
             const cardIds = Array.from(selectedCards);
             const cards = cardIds.map(id => window.myHandData.find(c => c.id === id)).filter(c => c);
 
+            // 連擊合法性檢查 (數字/功能必須相同)
             if (cards.length > 1) {
                 const firstVal = cards[0].value;
                 const allSame = cards.every(c => c.value === firstVal);
@@ -296,34 +296,40 @@
                 }
             }
 
-            const hasBlack = hasBlackCard(cardIds);
-            // 多張出牌 或 有黑牌 時，必須選色
-            const needsColor = cardIds.length > 1 || hasBlack;
+            const hasBlack = cards.some(c => c.color === 'black');
+            
+            // 檢查是否為「純色連擊」 (例如：兩張藍色)
+            // 獲取所有選中牌的顏色（排除黑色）
+            const distinctColors = [...new Set(cards.map(c => c.color).filter(c => c !== 'black'))];
+            const isMonoColorPlay = (distinctColors.length === 1);
+
+            // 判斷條件：
+            // 1. 如果有黑牌 (Wild) -> 必須選色
+            // 2. 如果是多張牌，但「不是」純色 (例如某些規則允許紅5+藍5) -> 必須選色
+            // 3. 如果是純色連擊 (藍+藍) -> 不用選色，直出
+            let needsColor = hasBlack; 
+            if (cards.length > 1) {
+                if (!isMonoColorPlay) {
+                    needsColor = true; // 雜色連擊，需要選色
+                }
+                // 如果是 isMonoColorPlay，needsColor 保持 false (直出)
+            }
 
             if (needsColor) {
                 pendingPlayData = cardIds;
                 let allowedColors = ['red', 'blue', 'green', 'yellow'];
                 
-                // === 修改點 2: 如果連擊出牌，不能選擇當前的桌面顏色 (強制轉色) ===
-                if (cardIds.length > 1) {
-                    // 從 allowedColors 中移除 currentActiveColor
-                    if (currentActiveColor && currentActiveColor !== 'black') {
-                        allowedColors = allowedColors.filter(c => c !== currentActiveColor);
-                    }
+                // === 強制轉色規則 (不可回馬槍) ===
+                // 如果需要選色（例如 Wild 牌，或雜色連擊），則把「當前桌面顏色」從選項中移除
+                if (currentActiveColor && currentActiveColor !== 'black') {
+                    allowedColors = allowedColors.filter(c => c !== currentActiveColor);
                 }
                 
                 showColorModal(allowedColors);
             } else {
+                // 不需要選色，直接出牌
                 sendPlay(cardIds, null);
             }
-        }
-
-        function hasBlackCard(ids) {
-            if (!window.myHandData) return false;
-            return ids.some(id => {
-                const c = window.myHandData.find(x => x.id === id);
-                return c && c.color === 'black';
-            });
         }
         
         function showColorModal(allowedColors) {
@@ -440,7 +446,7 @@
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('game-screen').style.display = 'flex';
                 
-                // === 修改點 3: 更新變數 currentActiveColor ===
+                // 更新當前桌面顏色 (用於過濾)
                 currentActiveColor = state.topCard.tempColor || (state.topCard.color !== 'black' ? state.topCard.color : null);
 
                 renderDiscard(state.topCard);
