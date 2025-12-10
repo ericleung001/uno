@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>UNO Ultimate v3</title>
+    <title>UNO Ultimate v5</title>
     <style>
         body { font-family: 'Arial', sans-serif; background: #1e272e; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
@@ -52,7 +52,8 @@
         #opponents { flex:1; display:flex; justify-content:center; align-items:center; gap:10px; padding:10px; background:#2f3640; flex-wrap: wrap; overflow-y: auto; }
         .opp { background:#353b48; padding:8px 12px; border-radius:10px; min-width:80px; text-align:center; position:relative; }
         .opp.active { border:3px solid #fbc531; box-shadow:0 0 15px #fbc531; transform: scale(1.05); background: #404b5c; }
-
+        /* 移除變灰樣式，因為不再顯示離線文字 */
+        
         #center { flex:2; display:flex; justify-content:center; align-items:center; gap:40px; position:relative; flex-direction: row; }
         #direction-indicator { position:absolute; top:20px; font-size:20px; color:#7f8fa6; font-weight: bold; }
 
@@ -116,44 +117,34 @@
 
     <div id="login-screen">
         <h1 style="font-size: 50px; margin-bottom: 20px;">UNO <span style="color:#ffaa00">Online</span></h1>
-        
         <div id="join-form">
             <input type="text" id="room-id" placeholder="輸入房號 或 點擊下方">
             <input type="text" id="username" placeholder="你的暱稱">
             <button onclick="submitJoin()">加入 / 創建房間</button> 
         </div>
-
         <p id="wait-msg" style="color:#aaa; margin-top:20px; display:none;"></p>
-        
         <div style="display:flex; justify-content:center;">
             <button id="start-btn" onclick="startGameAction()" style="display:none; background:#55aa55;">開始遊戲</button>
             <button id="leave-btn" onclick="leaveGameAction()" style="display:none; background: #e74c3c; margin-left: 10px;">退出房間</button>
         </div>
-
         <h3 style="margin-top:30px; color:#aaa;">📋 大廳房間列表</h3>
-        <div id="lobby-list">
-            <div style="color:#777; font-size:14px;">連接中...</div>
-        </div>
+        <div id="lobby-list"><div style="color:#777; font-size:14px;">連接中...</div></div>
     </div>
 
     <div id="game-screen">
         <div id="room-info">Room: <span id="current-room-display"></span></div>
         <div id="opponents"></div>
-        
         <div id="center">
             <div id="direction-indicator">順時針 ↻</div>
-            
             <div id="draw-btn" class="card back" onclick="drawCardAction()">
                 <div id="draw-text">PASS</div>
                 <small id="draw-sub">(抽牌)</small>
             </div>
-            
             <div style="position:relative">
                 <div id="discard" class="card"></div>
                 <div id="color-hint" class="current-color-hint" style="display:none"></div>
             </div>
         </div>
-
         <div id="my-area">
             <button id="play-action-btn" onclick="confirmPlay()">確認出牌</button>
             <div id="status-bar">準備開始</div>
@@ -170,10 +161,32 @@
         let selectedCards = new Set();
         let pendingPlayData = null;
         let unreadCount = 0;
+        let lastActivePlayer = null;
+
+        // === 1. 使用外部音效檔案 (確保你已將 ding.mp3 上傳到 public 資料夾) ===
+        const dingSound = new Audio("ding.mp3");
+
+        // 預先載入，並設定忽略錯誤
+        dingSound.load();
+
+        // 嘗試解鎖音效 (在使用者第一次點擊網頁時)
+        function unlockAudio() {
+            dingSound.play().then(() => {
+                dingSound.pause();
+                dingSound.currentTime = 0;
+            }).catch(() => {
+                // 如果瀏覽器還不允許，就忽略
+            });
+        }
 
         window.onload = function() {
             if(localStorage.getItem('last_room')) document.getElementById('room-id').value = localStorage.getItem('last_room');
             if(localStorage.getItem('last_name')) document.getElementById('username').value = localStorage.getItem('last_name');
+        }
+
+        function playTurnSound() {
+            dingSound.currentTime = 0;
+            dingSound.play().catch(e => console.log("Sound error:", e));
         }
 
         function toggleChat() {
@@ -234,13 +247,15 @@
         function backToLobby() { location.reload(); }
 
         function submitJoin() {
+            // === 關鍵：在這裡解鎖音效 ===
+            unlockAudio();
+
             if(!socket) return alert("尚未連接到伺服器");
             const roomId = document.getElementById('room-id').value.trim();
             const name = document.getElementById('username').value.trim();
             if(!roomId || !name) return alert("請輸入房號和暱稱");
             localStorage.setItem('last_room', roomId);
             localStorage.setItem('last_name', name);
-            // 移除 playerId
             socket.emit('joinGame', { name, roomId });
         }
 
@@ -428,11 +443,18 @@
                 renderDiscard(state.topCard);
                 renderOpponents(state.players, state.currentPlayer);
                 renderDrawButton(state.drawStack);
+
                 const isMyTurn = state.currentPlayer === myId;
                 const statusEl = document.getElementById('status-bar');
                 statusEl.innerText = isMyTurn ? "👉 輪到你了！" : "等待對手...";
                 statusEl.style.color = isMyTurn ? "#f1c40f" : "#aaa";
                 document.getElementById('direction-indicator').innerText = state.direction === 1 ? "順時針 ↻" : "逆時針 ↺";
+
+                // === 播放聲音 ===
+                if (isMyTurn && lastActivePlayer !== myId) {
+                    playTurnSound();
+                }
+                lastActivePlayer = state.currentPlayer;
             });
             socket.on('yourHand', (hand) => {
                 window.myHandData = hand;
@@ -515,6 +537,7 @@
             }
         }
 
+        // === 這裡修改了：移除了 (離線) 文字 ===
         function renderOpponents(players, currentId) {
             const div = document.getElementById('opponents');
             div.innerHTML = '';
@@ -522,6 +545,7 @@
                 if(p.id === myId) return;
                 const el = document.createElement('div');
                 el.className = `opp ${p.id === currentId ? 'active' : ''}`;
+                // 移除了 ${p.isOnline?'':'(離線)'}
                 el.innerHTML = `<div>${p.name}</div><div style="font-size:18px">🂠 ${p.handCount}</div>`;
                 div.appendChild(el);
             });
