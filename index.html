@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>UNO Ultimate v6</title>
+    <title>UNO Final Rule - Forced Color Change</title>
     <style>
         body { font-family: 'Arial', sans-serif; background: #1e272e; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
@@ -11,7 +11,10 @@
         #color-options { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         .color-btn { width: 120px; height: 120px; border-radius: 20px; border: 5px solid rgba(255,255,255,0.8); cursor: pointer; transition: transform 0.1s; }
         .color-btn:active { transform: scale(0.9); }
-        .color-btn.disabled { opacity: 0.1; pointer-events: none; filter: grayscale(100%); }
+        
+        /* === 關鍵樣式：被禁用的顏色 === */
+        .color-btn.disabled { opacity: 0.1; pointer-events: none; filter: grayscale(100%); cursor: not-allowed; }
+        
         .btn-red { background: #ff5555; } .btn-blue { background: #5555ff; } .btn-green { background: #55aa55; } .btn-yellow { background: #ffaa00; }
 
         #game-over-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 1000; justify-content: center; align-items: center; flex-direction: column; text-align: center; }
@@ -52,8 +55,7 @@
         #opponents { flex:1; display:flex; justify-content:center; align-items:center; gap:10px; padding:10px; background:#2f3640; flex-wrap: wrap; overflow-y: auto; }
         .opp { background:#353b48; padding:8px 12px; border-radius:10px; min-width:80px; text-align:center; position:relative; }
         .opp.active { border:3px solid #fbc531; box-shadow:0 0 15px #fbc531; transform: scale(1.05); background: #404b5c; }
-        /* 移除變灰樣式，因為不再顯示離線文字 */
-        
+
         #center { flex:2; display:flex; justify-content:center; align-items:center; gap:40px; position:relative; flex-direction: row; }
         #direction-indicator { position:absolute; top:20px; font-size:20px; color:#7f8fa6; font-weight: bold; }
 
@@ -162,21 +164,18 @@
         let pendingPlayData = null;
         let unreadCount = 0;
         let lastActivePlayer = null;
+        // === 修改點 1: 新增全域變數記錄桌面顏色 ===
+        let currentActiveColor = null; 
 
-        // === 1. 使用外部音效檔案 (確保你已將 ding.mp3 上傳到 public 資料夾) ===
+        // === 使用本地 ding.mp3 ===
         const dingSound = new Audio("ding.mp3");
-
-        // 預先載入，並設定忽略錯誤
         dingSound.load();
 
-        // 嘗試解鎖音效 (在使用者第一次點擊網頁時)
         function unlockAudio() {
             dingSound.play().then(() => {
                 dingSound.pause();
                 dingSound.currentTime = 0;
-            }).catch(() => {
-                // 如果瀏覽器還不允許，就忽略
-            });
+            }).catch(() => {});
         }
 
         window.onload = function() {
@@ -247,9 +246,7 @@
         function backToLobby() { location.reload(); }
 
         function submitJoin() {
-            // === 關鍵：在這裡解鎖音效 ===
             unlockAudio();
-
             if(!socket) return alert("尚未連接到伺服器");
             const roomId = document.getElementById('room-id').value.trim();
             const name = document.getElementById('username').value.trim();
@@ -300,12 +297,21 @@
             }
 
             const hasBlack = hasBlackCard(cardIds);
+            // 多張出牌 或 有黑牌 時，必須選色
             const needsColor = cardIds.length > 1 || hasBlack;
 
             if (needsColor) {
                 pendingPlayData = cardIds;
                 let allowedColors = ['red', 'blue', 'green', 'yellow'];
-                if (!hasBlack) allowedColors = getUniqueColors(cardIds);
+                
+                // === 修改點 2: 如果連擊出牌，不能選擇當前的桌面顏色 (強制轉色) ===
+                if (cardIds.length > 1) {
+                    // 從 allowedColors 中移除 currentActiveColor
+                    if (currentActiveColor && currentActiveColor !== 'black') {
+                        allowedColors = allowedColors.filter(c => c !== currentActiveColor);
+                    }
+                }
+                
                 showColorModal(allowedColors);
             } else {
                 sendPlay(cardIds, null);
@@ -320,22 +326,15 @@
             });
         }
         
-        function getUniqueColors(ids) {
-            if (!window.myHandData) return [];
-            const colors = new Set();
-            ids.forEach(id => {
-                const c = window.myHandData.find(x => x.id === id);
-                if (c && c.color !== 'black') colors.add(c.color);
-            });
-            return Array.from(colors);
-        }
-
         function showColorModal(allowedColors) {
             const all = ['red', 'blue', 'green', 'yellow'];
             all.forEach(c => {
                 const btn = document.getElementById(`modal-btn-${c}`);
-                if (allowedColors.includes(c)) btn.classList.remove('disabled');
-                else btn.classList.add('disabled');
+                if (allowedColors.includes(c)) {
+                    btn.classList.remove('disabled');
+                } else {
+                    btn.classList.add('disabled');
+                }
             });
             document.getElementById('color-modal').style.display = 'flex';
         }
@@ -440,6 +439,10 @@
                 unlockInterface();
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('game-screen').style.display = 'flex';
+                
+                // === 修改點 3: 更新變數 currentActiveColor ===
+                currentActiveColor = state.topCard.tempColor || (state.topCard.color !== 'black' ? state.topCard.color : null);
+
                 renderDiscard(state.topCard);
                 renderOpponents(state.players, state.currentPlayer);
                 renderDrawButton(state.drawStack);
@@ -450,7 +453,6 @@
                 statusEl.style.color = isMyTurn ? "#f1c40f" : "#aaa";
                 document.getElementById('direction-indicator').innerText = state.direction === 1 ? "順時針 ↻" : "逆時針 ↺";
 
-                // === 播放聲音 ===
                 if (isMyTurn && lastActivePlayer !== myId) {
                     playTurnSound();
                 }
@@ -537,7 +539,6 @@
             }
         }
 
-        // === 這裡修改了：移除了 (離線) 文字 ===
         function renderOpponents(players, currentId) {
             const div = document.getElementById('opponents');
             div.innerHTML = '';
@@ -545,7 +546,6 @@
                 if(p.id === myId) return;
                 const el = document.createElement('div');
                 el.className = `opp ${p.id === currentId ? 'active' : ''}`;
-                // 移除了 ${p.isOnline?'':'(離線)'}
                 el.innerHTML = `<div>${p.name}</div><div style="font-size:18px">🂠 ${p.handCount}</div>`;
                 div.appendChild(el);
             });
