@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>UNO Online Final - Queue Fixed</title>
+    <title>UNO Online Final - Queue Fixed V3</title>
     <style>
         body { font-family: 'Arial', sans-serif; background: #1e272e; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
@@ -25,7 +25,7 @@
             display: none; /* 預設隱藏 */
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(30, 39, 46, 0.98);
-            z-index: 5000;
+            z-index: 9999; /* 確保擋住所有東西 */
             justify-content: center; align-items: center; flex-direction: column;
             text-align: center;
         }
@@ -231,11 +231,11 @@
         let lastActivePlayer = null;
         let currentActiveColor = null;
         
-        // === 設定：最大伺服器人數 ===
-        const MAX_SERVER_CAPACITY = 3; // 這裡你設置為 3 進行測試，發布時請改回 50
+        // === 設定：最大伺服器人數 (測試用 3, 發佈請改 50) ===
+        const MAX_SERVER_CAPACITY = 3; 
         
-        // === 新增：判斷是否已經入場 (入場券) ===
-        let hasEnteredServer = false;
+        // === 關鍵修正：判斷是否已經在房間內 ===
+        let isInRoom = false;
 
         const dingSound = new Audio("ding.mp3");
         dingSound.load();
@@ -464,9 +464,10 @@
                 document.getElementById('leave-btn').style.display = 'inline-block';
                 document.getElementById('current-room-display').innerText = roomId;
                 document.getElementById('chat-wrapper').style.display = 'flex';
-                // 成功加入房間後，肯定是在裡面了
+                
+                // === 關鍵修正：進入房間後，設置 isInRoom 為 true ===
+                isInRoom = true;
                 document.getElementById('queue-overlay').style.display = 'none';
-                hasEnteredServer = true; 
             });
             socket.on('leftGameSuccess', () => {
                 document.getElementById('join-form').style.display = 'flex';
@@ -478,14 +479,16 @@
                 document.getElementById('chat-wrapper').style.display = 'none';
                 document.getElementById('chat-messages').innerHTML = '';
                 selectedCards.clear(); updatePlayButton(); unlockInterface();
-                // 離開房間回到大廳，依然持有入場券
-                hasEnteredServer = true;
+                
+                // === 關鍵修正：離開房間回到大廳，設置 isInRoom 為 false ===
+                // 這會觸發 roomListUpdate 重新檢查人數，如果滿員則顯示排隊
+                isInRoom = false;
             });
             socket.on('receiveMessage', (data) => {
                 appendMessage(data.name, data.text, data.name === document.getElementById('username').value);
             });
             
-            // === 排隊邏輯核心 (修正版) ===
+            // === 排隊邏輯核心 (V3) ===
             socket.on('roomListUpdate', (list) => {
                 const container = document.getElementById('lobby-list');
                 container.innerHTML = '';
@@ -498,19 +501,15 @@
                 document.getElementById('server-count').innerText = totalPlayers;
                 const queueOverlay = document.getElementById('queue-overlay');
 
-                // 1. 如果人數未滿：所有人都可以進 (給予入場券)
-                if (totalPlayers < MAX_SERVER_CAPACITY) {
-                    hasEnteredServer = true; // 拿到入場券
+                // === 邏輯：如果你在房間內 (isInRoom)，不管人數多少，都不顯示排隊 ===
+                if (isInRoom) {
                     queueOverlay.style.display = 'none';
-                } 
-                // 2. 如果人數已滿：
-                else {
-                    // 如果我有入場券，我就不用排隊
-                    if (hasEnteredServer) {
-                        queueOverlay.style.display = 'none';
-                    } else {
-                        // 如果我沒有入場券，我就要排隊
+                } else {
+                    // === 如果你不在房間內 (在大廳)，且人數已滿 -> 排隊 ===
+                    if (totalPlayers >= MAX_SERVER_CAPACITY) {
                         queueOverlay.style.display = 'flex';
+                    } else {
+                        queueOverlay.style.display = 'none';
                     }
                 }
 
@@ -549,6 +548,7 @@
                 unlockInterface();
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('game-screen').style.display = 'flex';
+                // 遊戲中強制隱藏排隊
                 document.getElementById('queue-overlay').style.display = 'none';
                 
                 currentActiveColor = state.topCard.tempColor || (state.topCard.color !== 'black' ? state.topCard.color : null);
