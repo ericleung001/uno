@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>UNO Online v3.6</title>
+    <title>UNO Online v3.7</title>
    <style>
         body { font-family: 'Arial', sans-serif; background: #1e272e; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
@@ -145,7 +145,7 @@
     <div id="game-screen"><div id="room-info"><div id="room-text">Room: <span id="current-room-display"></span></div><button id="exit-btn" onclick="backToLobby()">退出房間</button></div><div id="opponents"></div><div id="center"><div id="direction-indicator">順時針 ↻</div><div id="draw-btn" class="card back" onclick="drawCardAction()"><div id="draw-text">PASS</div><small id="draw-sub">(抽牌)</small></div><div style="position:relative"><div id="discard" class="card"></div><div id="color-hint" class="current-color-hint" style="display:none"></div></div></div><div id="my-area"><button id="play-action-btn" onclick="confirmPlay()">確認出牌</button><div id="status-bar">準備開始</div><div id="my-hand"></div></div></div>
 
         <script>
-            script src="https://ericleung001.github.io/uno/socket.io.js">
+            <script src="https://ericleung001.github.io/uno/socket.io.js">
         </script>
 
     <script>
