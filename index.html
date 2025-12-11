@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>UNO Online Final v6</title>
+    <title>UNO Online Final Fix</title>
     <style>
         body { font-family: 'Arial', sans-serif; background: #1e272e; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
@@ -79,14 +79,13 @@
         #status-bar { text-align: center; font-size: 20px; margin-bottom: 10px; min-height: 30px; font-weight: bold; }
         .current-color-hint { position: absolute; bottom: -50px; background: rgba(0,0,0,0.8); padding: 8px 20px; border-radius: 20px; font-size: 16px; border: 1px solid white; }
         
-        /* === 修正：右上角房間資訊與退出按鈕樣式 === */
         #room-info { 
             position: absolute; 
             top: 15px; 
             right: 15px; 
             display: flex; 
             flex-direction: column; 
-            align-items: flex-end; /* 靠右對齊 */
+            align-items: flex-end;
             gap: 5px;
         }
         #room-text { font-size: 16px; color: #7f8fa6; font-weight: bold; }
@@ -310,7 +309,7 @@
         }
 
         // ============================================
-        // === 最終確認出牌邏輯 (Wild 無限 + 連擊過濾) ===
+        // === 修正版邏輯：同色連擊直出 + Wild 強制選 ===
         // ============================================
         function confirmPlay() {
             if (selectedCards.size === 0) return;
@@ -328,18 +327,23 @@
             }
 
             const hasBlack = cards.some(c => c.color === 'black');
+            // 找出這次出牌包含的所有「有色」顏色 (排除 Wild 黑色)
             const distinctPlayColors = [...new Set(cards.filter(c => c.color !== 'black').map(c => c.color))];
             
             // 2. 判斷是否需要彈出顏色選擇視窗
             let needsColorSelection = false;
 
-            // 條件 A: 有黑牌 (Wild) -> 必須選色
             if (hasBlack) {
-                needsColorSelection = true;
-            }
-            // 條件 B: 多張牌連擊 (即使顏色單一，為了執行過濾邏輯，也視為需要選色)
-            else if (cardIds.length > 1) {
-                needsColorSelection = true;
+                needsColorSelection = true; // 有黑牌(Wild)一定彈窗
+            } else if (cardIds.length > 1) {
+                // 連擊情況：
+                // 如果是「雜色連擊」(紅+藍)，必須選色 (needsColorSelection = true)
+                // 如果是「純色連擊」(紅+紅)，因為沒有顏色歧義，直接出牌 (needsColorSelection = false)
+                if (distinctPlayColors.length > 1) {
+                    needsColorSelection = true;
+                } else {
+                    needsColorSelection = false; // 純色連擊，直出
+                }
             }
 
             if (needsColorSelection) {
@@ -355,7 +359,6 @@
                 }
 
                 // 步驟 B: 執行「不可回馬槍」過濾 (Wild 免死金牌)
-                // 只有在「沒有 Wild 卡」的情況下才過濾
                 if (!hasBlack && currentActiveColor && currentActiveColor !== 'black') {
                     allowedColors = allowedColors.filter(c => c !== currentActiveColor);
                 }
