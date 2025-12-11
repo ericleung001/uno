@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>UNO Online v3.4</title>
+    <title>UNO Online v3.5</title>
    <style>
         body { font-family: 'Arial', sans-serif; background: #1e272e; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
@@ -144,8 +144,9 @@
     <div id="login-screen"><h1 style="font-size: 50px; margin-bottom: 20px;">UNO <span style="color:#ffaa00">Online</span></h1><div id="join-form"><input type="text" id="room-id" placeholder="輸入房號 或 點擊下方"><input type="password" id="room-pass" placeholder="密碼 (選填)" style="font-size: 16px;"><input type="text" id="username" placeholder="你的暱稱"><button id="join-btn" onclick="submitJoin()">加入 / 創建房間</button></div><p id="wait-msg" style="color:#aaa; margin-top:20px; display:none;"></p><div style="display:flex; justify-content:center;"><button id="start-btn" onclick="startGameAction()" style="display:none; background:#55aa55;">開始遊戲</button><button id="leave-btn" onclick="leaveGameAction()" style="display:none; background: #e74c3c; margin-left: 10px;">退出房間</button></div><h3 style="margin-top:30px; color:#aaa;">📋 大廳房間列表</h3><div id="lobby-list"><div style="color:#777; font-size:14px;">連接中...</div></div></div>
     <div id="game-screen"><div id="room-info"><div id="room-text">Room: <span id="current-room-display"></span></div><button id="exit-btn" onclick="backToLobby()">退出房間</button></div><div id="opponents"></div><div id="center"><div id="direction-indicator">順時針 ↻</div><div id="draw-btn" class="card back" onclick="drawCardAction()"><div id="draw-text">PASS</div><small id="draw-sub">(抽牌)</small></div><div style="position:relative"><div id="discard" class="card"></div><div id="color-hint" class="current-color-hint" style="display:none"></div></div></div><div id="my-area"><button id="play-action-btn" onclick="confirmPlay()">確認出牌</button><div id="status-bar">準備開始</div><div id="my-hand"></div></div></div>
 
-    <script>
-    script src="socket.io.js"></script>
+        <script>
+            script src="socket.io.js">
+        </script>
 
     <script>
         let socket = null;
