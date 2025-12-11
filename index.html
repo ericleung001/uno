@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>UNO Online v4.5 (Clean Version)</title>
+    <title>UNO Online v4.6 (News Update)</title>
     <style>
         body { font-family: 'Arial', sans-serif; background: #1e272e; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; overscroll-behavior: none; touch-action: pan-x pan-y; -webkit-user-select: none; user-select: none; }
         
@@ -27,7 +27,7 @@
 
         #notification-bar { position: fixed; top: 10%; left: 50%; transform: translateX(-50%); background: rgba(255, 165, 2, 0.95); color: black; padding: 12px 25px; border-radius: 30px; font-weight: bold; font-size: 18px; z-index: 6000; display: none; box-shadow: 0 5px 15px rgba(0,0,0,0.5); white-space: nowrap; }
 
-        /* 聊天室 (保持修復版) */
+        /* 聊天室 */
         #chat-wrapper { position: fixed; bottom: 20px; right: 20px; z-index: 3000; display: flex; flex-direction: column; align-items: flex-end; }
         #chat-toggle-btn { width: 60px; height: 60px; border-radius: 50%; background: #3498db; color: white; border: none; box-shadow: 0 4px 10px rgba(0,0,0,0.5); cursor: pointer; font-size: 30px; display: flex; justify-content: center; align-items: center; position: relative; }
         #chat-unread { position: absolute; top: 0; right: 0; background: red; color: white; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; display: none; justify-content: center; align-items: center; }
@@ -43,6 +43,7 @@
         #chat-input { flex: 1; padding: 8px; border-radius: 20px; border: none; outline: none; }
         #chat-send { padding: 8px 15px; background: #2ecc71; border: none; border-radius: 20px; color: white; cursor: pointer; font-weight: bold; }
 
+        /* 登入畫面 */
         #login-screen { position: absolute; top:0; left:0; width:100%; height:100%; background: #2f3640; z-index:99; display:flex; flex-direction:column; align-items:center; justify-content:center; }
         #join-form { display: flex; flex-direction: column; align-items: center; }
         input { padding:12px; font-size:18px; margin:8px; text-align:center; border-radius: 8px; border:none; width: 220px; outline: none; }
@@ -50,7 +51,7 @@
         #room-pass:focus { background: white; }
         button { padding:12px 30px; font-size:18px; background:#e67e22; color:white; border:none; border-radius:8px; cursor:pointer; font-weight: bold; margin-top: 10px; }
         #leave-btn { background: #e74c3c; margin-left: 10px; display: none; }
-        #lobby-list { margin-top: 30px; width: 320px; max-height: 200px; overflow-y: auto; background: rgba(0,0,0,0.3); border-radius: 10px; padding: 10px; }
+        #lobby-list { margin-top: 20px; width: 320px; max-height: 200px; overflow-y: auto; background: rgba(0,0,0,0.3); border-radius: 10px; padding: 10px; }
         .room-item { background: #34495e; margin: 8px 0; padding: 12px; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: 0.2s; }
         .room-item:hover { background: #46637f; }
         .room-item.full { opacity: 0.5; cursor: not-allowed; }
@@ -59,18 +60,27 @@
         .status-play { background: #e74c3c; color: white; }
         .room-item.locked { border-left: 5px solid #f1c40f; }
 
+        /* === 新增：公告欄樣式 === */
+        #news-box {
+            width: 320px;
+            background: rgba(0,0,0,0.4);
+            border: 2px solid #f1c40f;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px; /* 與下方輸入框保持距離 */
+            text-align: left;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            max-height: 120px; /* 限制高度，太多內容可滑動 */
+            overflow-y: auto;
+        }
+        #news-box h3 { margin: 0 0 10px 0; font-size: 16px; color: #f1c40f; border-bottom: 1px solid #555; padding-bottom: 5px; }
+        #news-box ul { margin: 0; padding-left: 20px; font-size: 13px; color: #ddd; }
+        #news-box li { margin-bottom: 4px; }
+
+        /* 遊戲畫面 */
         #game-screen { display: none; flex-direction: column; height: 100%; }
         #opponents { flex:1; display:flex; justify-content:center; align-items:center; gap:10px; padding:10px; background:#2f3640; flex-wrap: wrap; overflow-y: auto; }
-        
-        .opp { 
-            background:#353b48; 
-            padding:8px 12px; 
-            border-radius:10px; 
-            min-width:80px; 
-            text-align:center; 
-            position:relative; 
-            /* 移除了 margin-top: 40px，因為不需要氣泡空間了 */
-        }
+        .opp { background:#353b48; padding:8px 12px; border-radius:10px; min-width:80px; text-align:center; position:relative; }
         .opp.active { border:3px solid #fbc531; box-shadow:0 0 15px #fbc531; transform: scale(1.05); background: #404b5c; }
 
         #center { flex:2; display:flex; justify-content:center; align-items:center; gap:40px; position:relative; flex-direction: row; }
@@ -132,7 +142,24 @@
         <button id="chat-toggle-btn" onclick="toggleChat()">💬<div id="chat-unread"></div></button>
     </div>
 
-    <div id="login-screen"><h1 style="font-size: 50px; margin-bottom: 20px;">UNO <span style="color:#ffaa00">Online</span></h1><div id="join-form"><input type="text" id="room-id" placeholder="輸入房號 或 點擊下方"><input type="password" id="room-pass" placeholder="密碼 (選填)" style="font-size: 16px;"><input type="text" id="username" placeholder="你的暱稱"><button id="join-btn" onclick="submitJoin()">加入 / 創建房間</button></div><p id="wait-msg" style="color:#aaa; margin-top:20px; display:none;"></p><div style="display:flex; justify-content:center;"><button id="start-btn" onclick="startGameAction()" style="display:none; background:#55aa55;">開始遊戲</button><button id="leave-btn" onclick="leaveGameAction()" style="display:none; background: #e74c3c; margin-left: 10px;">退出房間</button></div><h3 style="margin-top:30px; color:#aaa;">📋 大廳房間列表</h3><div id="lobby-list"><div style="color:#777; font-size:14px;">連接中...</div></div></div>
+    <div id="login-screen">
+        <h1 style="font-size: 50px; margin-bottom: 20px;">UNO <span style="color:#ffaa00">Online</span></h1>
+        
+        <div id="news-box">
+            <h3>📢 更新消息 (v4.6)</h3>
+            <ul>
+                <li>1. 新增 UNO 按鈕 (剩一張牌時出現)</li>
+                <li>2. iOS用家請將網頁加到"主畫面"防止滑走</li>
+                <li>3. 20秒自動 Pass 機制</li>
+            </ul>
+        </div>
+
+        <div id="join-form"><input type="text" id="room-id" placeholder="輸入房號 或 點擊下方"><input type="password" id="room-pass" placeholder="密碼 (選填)" style="font-size: 16px;"><input type="text" id="username" placeholder="你的暱稱"><button id="join-btn" onclick="submitJoin()">加入 / 創建房間</button></div>
+        <p id="wait-msg" style="color:#aaa; margin-top:20px; display:none;"></p>
+        <div style="display:flex; justify-content:center;"><button id="start-btn" onclick="startGameAction()" style="display:none; background:#55aa55;">開始遊戲</button><button id="leave-btn" onclick="leaveGameAction()" style="display:none; background: #e74c3c; margin-left: 10px;">退出房間</button></div>
+        <h3 style="margin-top:20px; color:#aaa;">📋 大廳房間列表</h3>
+        <div id="lobby-list"><div style="color:#777; font-size:14px;">連接中...</div></div>
+    </div>
     
     <div id="game-screen">
         <div id="room-info"><div id="room-text">Room: <span id="current-room-display"></span></div><button id="exit-btn" onclick="backToLobby()">退出房間</button></div>
@@ -177,7 +204,7 @@
         function initGameSystem() {
             const serverUrl = atob(_0x1);
             try {
-                // 移除了 { transports: ['websocket'] }
+                // 恢復標準連線 (不強制 websocket)
                 socket = io(serverUrl);
                 setupSocketEvents();
             } catch (e) {
@@ -262,24 +289,24 @@
 
             socket.on('connect', () => { myId = socket.id; });
             
-            // 移除了 playerShoutUno 的監聽器
+            // 移除了 playerShoutUno (氣泡)
 
             socket.on('joinSuccess', (roomId) => {
                 document.getElementById('join-form').style.display = 'none';
+                document.getElementById('news-box').style.display = 'none'; // 隱藏公告
                 document.getElementById('wait-msg').style.display = 'block';
                 document.getElementById('start-btn').style.display = 'none'; 
                 document.getElementById('leave-btn').style.display = 'inline-block';
-                
                 const cleanRoomId = escapeHtml(roomId);
                 const displayRoomId = cleanRoomId.includes('#') ? cleanRoomId.split('#')[0] : cleanRoomId;
                 document.getElementById('current-room-display').innerText = displayRoomId;
-                
                 document.getElementById('chat-wrapper').style.display = 'flex';
                 isInRoom = true;
                 document.getElementById('queue-overlay').style.display = 'none';
             });
             socket.on('leftGameSuccess', () => {
                 document.getElementById('join-form').style.display = 'flex';
+                document.getElementById('news-box').style.display = 'block'; // 顯示公告
                 document.getElementById('wait-msg').style.display = 'none';
                 document.getElementById('start-btn').style.display = 'none';
                 document.getElementById('leave-btn').style.display = 'none';
@@ -372,7 +399,6 @@
             });
             socket.on('errorMsg', (msg) => { alert(msg); unlockInterface(); });
             
-            // Queue events
             socket.on('queueStatus', (data) => {
                 document.getElementById('queue-overlay').style.display = 'flex';
             });
