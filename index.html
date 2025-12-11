@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>UNO Online Final v2.2</title>
+    <title>UNO Online Final v2.3</title>
     <style>
         body { font-family: 'Arial', sans-serif; background: #1e272e; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
@@ -70,11 +70,8 @@
         #login-screen { position: absolute; top:0; left:0; width:100%; height:100%; background: #2f3640; z-index:99; display:flex; flex-direction:column; align-items:center; justify-content:center; }
         #join-form { display: flex; flex-direction: column; align-items: center; }
         input { padding:12px; font-size:18px; margin:8px; text-align:center; border-radius: 8px; border:none; width: 220px; outline: none; }
-        
-        /* 密碼輸入框樣式 */
         #room-pass { background: #dcdcdc; color: #333; }
         #room-pass:focus { background: white; }
-
         button { padding:12px 30px; font-size:18px; background:#e67e22; color:white; border:none; border-radius:8px; cursor:pointer; font-weight: bold; margin-top: 10px; }
         #leave-btn { background: #e74c3c; margin-left: 10px; display: none; }
         #lobby-list { margin-top: 30px; width: 320px; max-height: 200px; overflow-y: auto; background: rgba(0,0,0,0.3); border-radius: 10px; padding: 10px; }
@@ -84,8 +81,6 @@
         .room-status { font-size: 12px; padding: 4px 10px; border-radius: 12px; }
         .status-wait { background: #2ecc71; color: white; }
         .status-play { background: #e74c3c; color: white; }
-        
-        /* 鎖定房間的樣式 */
         .room-item.locked { border-left: 5px solid #f1c40f; }
 
         /* 遊戲畫面 */
@@ -228,8 +223,6 @@
         </div>
     </div>
 
-    <script src="https://uno.ttctv-105.cc/socket.io/socket.io.js"></script>
-
     <script>
         let socket = null;
         let myId = null;
@@ -239,15 +232,38 @@
         let unreadCount = 0;
         let lastActivePlayer = null;
         let currentActiveColor = null;
-        
-        // === 設定：最大伺服器人數 (測試用 50) ===
         const MAX_SERVER_CAPACITY = 50; 
-        
-        // 判斷是否已經在房間內
         let isInRoom = false;
 
         const dingSound = new Audio("ding.mp3");
         dingSound.load();
+
+        // === 混淆處理：隱藏 Socket.io 網址 ===
+        // 將 'https://uno.ttctv-105.cc' 轉為 Base64 字串
+        // 這樣在源代碼中就不會直接看到網址
+        const _0x1 = "aHR0cHM6Ly91bm8udHRjdHYtMTA1LmNj"; // Base64 of URL
+
+        function initGameSystem() {
+            // 解碼網址
+            const serverUrl = atob(_0x1);
+            
+            // 1. 動態加載 Socket.io 腳本
+            const script = document.createElement('script');
+            script.src = serverUrl + "/socket.io/socket.io.js";
+            script.onload = () => {
+                // 2. 腳本加載完成後，建立連線
+                try {
+                    socket = io(serverUrl);
+                    setupSocketEvents(); // 綁定所有事件
+                } catch (e) {
+                    document.getElementById('lobby-list').innerHTML = '<div style="color:red">無法連接伺服器</div>';
+                }
+            };
+            script.onerror = () => {
+                 document.getElementById('lobby-list').innerHTML = '<div style="color:red">無法加載遊戲核心</div>';
+            };
+            document.body.appendChild(script);
+        }
 
         function unlockAudio() {
             dingSound.play().then(() => {
@@ -260,251 +276,14 @@
             if(localStorage.getItem('last_room')) document.getElementById('room-id').value = localStorage.getItem('last_room');
             if(localStorage.getItem('last_name')) document.getElementById('username').value = localStorage.getItem('last_name');
             document.getElementById('server-max').innerText = MAX_SERVER_CAPACITY;
-        }
-
-        function playTurnSound() {
-            dingSound.currentTime = 0;
-            dingSound.play().catch(e => console.log("Sound error:", e));
-        }
-
-        function toggleChat() {
-            const box = document.getElementById('chat-box');
-            const btn = document.getElementById('chat-toggle-btn');
-            if (box.style.display === 'flex') {
-                box.style.display = 'none';
-                btn.style.display = 'flex';
-            } else {
-                box.style.display = 'flex';
-                btn.style.display = 'none';
-                unreadCount = 0;
-                updateUnreadBadge();
-                scrollToBottom();
-            }
-        }
-        function handleChatKey(e) { if (e.key === 'Enter') sendChat(); }
-        function sendChat() {
-            const input = document.getElementById('chat-input');
-            const text = input.value.trim();
-            if (text && socket) {
-                socket.emit('sendMessage', text);
-                input.value = '';
-            }
-        }
-        function appendMessage(name, text, isMine) {
-            const container = document.getElementById('chat-messages');
-            const div = document.createElement('div');
-            div.className = `msg ${isMine ? 'mine' : 'others'}`;
-            let nameHtml = isMine ? '' : `<span class="name">${name}</span>`;
-            div.innerHTML = `${nameHtml}${escapeHtml(text)}`;
-            container.appendChild(div);
-            scrollToBottom();
-            const box = document.getElementById('chat-box');
-            if (box.style.display !== 'flex') {
-                unreadCount++;
-                updateUnreadBadge();
-            }
-        }
-        function updateUnreadBadge() {
-            const badge = document.getElementById('chat-unread');
-            if (unreadCount > 0) {
-                badge.innerText = unreadCount;
-                badge.style.display = 'flex';
-            } else {
-                badge.style.display = 'none';
-            }
-        }
-        function scrollToBottom() {
-            const div = document.getElementById('chat-messages');
-            div.scrollTop = div.scrollHeight;
-        }
-        function escapeHtml(text) {
-            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-            return text.replace(/[&<>"']/g, function(m) { return map[m]; });
-        }
-
-        function backToLobby() { location.reload(); }
-
-        // === 修改：加入密碼處理邏輯 ===
-        function submitJoin() {
-            unlockAudio();
-            if(!socket) return alert("尚未連接到伺服器");
             
-            const rawRoomId = document.getElementById('room-id').value.trim();
-            const password = document.getElementById('room-pass').value.trim();
-            const name = document.getElementById('username').value.trim();
-            
-            if(!rawRoomId || !name) return alert("請輸入房號和暱稱");
-            
-            // 如果有密碼，合併成 "房號#密碼" 格式
-            const finalRoomId = password ? `${rawRoomId}#${password}` : rawRoomId;
-
-            localStorage.setItem('last_room', rawRoomId);
-            localStorage.setItem('last_name', name);
-            
-            socket.emit('joinGame', { name, roomId: finalRoomId });
+            // 啟動系統
+            initGameSystem();
         }
 
-        // 點擊大廳列表時的邏輯
-        function clickRoomItem(roomId) {
-            // 檢查是否是加密房間
-            if (roomId.includes('#')) {
-                const cleanId = roomId.split('#')[0];
-                const inputPass = prompt(`房間 [${cleanId}] 需要密碼，請輸入：`);
-                if (inputPass === null) return; // 取消
-                
-                // 嘗試拼接密碼並加入
-                const name = document.getElementById('username').value.trim();
-                if(!name) return alert("請先輸入暱稱");
-                
-                const tryId = `${cleanId}#${inputPass}`;
-                
-                // 比對一下 (雖然前端比對不安全，但在這裡我們是直接發送請求給 server)
-                // 更好的做法是直接 join，如果錯誤就進不去 (會變成創建了一個新房)
-                // 為了簡單，我們直接用這個 tryId 去 join
-                
-                // 為了更好的體驗，我們檢查一下是否匹配 (因為列表裡有真實ID)
-                if (tryId !== roomId) {
-                    alert("密碼錯誤！");
-                    return;
-                }
-                
-                socket.emit('joinGame', { name, roomId: tryId });
-            } else {
-                // 普通房間
-                selectRoom(roomId);
-            }
-        }
+        function setupSocketEvents() {
+            if (!socket) return;
 
-        function leaveGameAction() { if(socket) socket.emit('leaveGame'); }
-        function startGameAction() { if(socket) socket.emit('startGame'); }
-        function drawCardAction() { if(socket && !isProcessing) { lockInterface(); socket.emit('drawCard'); } }
-
-        function toggleCardSelection(cardId, element) {
-            if (isProcessing) return;
-            if (selectedCards.has(cardId)) {
-                selectedCards.delete(cardId);
-                element.classList.remove('selected');
-            } else {
-                selectedCards.add(cardId);
-                element.classList.add('selected');
-            }
-            updatePlayButton();
-        }
-
-        function updatePlayButton() {
-            const btn = document.getElementById('play-action-btn');
-            if (selectedCards.size > 0) {
-                btn.style.display = 'block';
-                btn.innerText = `出牌 (${selectedCards.size})`;
-            } else {
-                btn.style.display = 'none';
-            }
-        }
-
-        function confirmPlay() {
-            if (selectedCards.size === 0) return;
-            const cardIds = Array.from(selectedCards);
-            const cards = cardIds.map(id => window.myHandData.find(c => c.id === id)).filter(c => c);
-
-            if (cards.length > 1) {
-                const firstVal = cards[0].value;
-                const allSame = cards.every(c => c.value === firstVal);
-                if (!allSame) {
-                    alert("連擊失敗：你選的牌數字或功能不相同！");
-                    return; 
-                }
-            }
-
-            const hasBlack = cards.some(c => c.color === 'black');
-            const distinctPlayColors = [...new Set(cards.filter(c => c.color !== 'black').map(c => c.color))];
-            
-            let needsColorSelection = false;
-
-            if (hasBlack) {
-                needsColorSelection = true; 
-            } else if (cardIds.length > 1) {
-                if (distinctPlayColors.length > 1) {
-                    needsColorSelection = true;
-                } else {
-                    needsColorSelection = false;
-                }
-            }
-
-            if (needsColorSelection) {
-                pendingPlayData = cardIds;
-                
-                let allowedColors = [];
-                if (hasBlack) {
-                    allowedColors = ['red', 'blue', 'green', 'yellow'];
-                } else {
-                    allowedColors = [...distinctPlayColors];
-                }
-
-                if (!hasBlack && currentActiveColor && currentActiveColor !== 'black') {
-                    allowedColors = allowedColors.filter(c => c !== currentActiveColor);
-                }
-
-                showColorModal(allowedColors);
-
-            } else {
-                sendPlay(cardIds, null);
-            }
-        }
-        
-        function showColorModal(allowedColors) {
-            const all = ['red', 'blue', 'green', 'yellow'];
-            all.forEach(c => {
-                const btn = document.getElementById(`modal-btn-${c}`);
-                if (allowedColors.includes(c)) {
-                    btn.classList.remove('disabled');
-                } else {
-                    btn.classList.add('disabled');
-                }
-            });
-            document.getElementById('color-modal').style.display = 'flex';
-        }
-
-        function selectColor(color) {
-            if (pendingPlayData && socket) {
-                sendPlay(pendingPlayData, color);
-                closeColorModal();
-            }
-        }
-
-        function sendPlay(ids, color) {
-            if(!socket || isProcessing) return;
-            lockInterface();
-            socket.emit('playCard', { cardIds: ids, chooseColor: color });
-            selectedCards.clear();
-            updatePlayButton();
-        }
-
-        function closeColorModal() {
-            document.getElementById('color-modal').style.display = 'none';
-            pendingPlayData = null;
-        }
-
-        function lockInterface() {
-            isProcessing = true;
-            document.getElementById('my-hand').classList.add('processing');
-        }
-        function unlockInterface() {
-            isProcessing = false;
-            document.getElementById('my-hand').classList.remove('processing');
-        }
-
-        function selectRoom(id) {
-            document.getElementById('room-id').value = id;
-            const input = document.getElementById('room-id');
-            input.style.backgroundColor = '#444';
-            setTimeout(() => input.style.backgroundColor = '#fff', 200);
-        }
-
-        try { socket = io('https://uno.ttctv-105.cc'); } catch (e) {
-            document.getElementById('lobby-list').innerHTML = '<div style="color:red">無法連接伺服器</div>';
-        }
-
-        if (socket) {
             socket.on('connect', () => { myId = socket.id; });
             socket.on('joinSuccess', (roomId) => {
                 document.getElementById('join-form').style.display = 'none';
@@ -512,13 +291,10 @@
                 document.getElementById('start-btn').style.display = 'none'; 
                 document.getElementById('leave-btn').style.display = 'inline-block';
                 
-                // === 顯示處理：隱藏密碼部分 ===
                 const displayRoomId = roomId.includes('#') ? roomId.split('#')[0] : roomId;
                 document.getElementById('current-room-display').innerText = displayRoomId;
                 
                 document.getElementById('chat-wrapper').style.display = 'flex';
-                
-                // 已入場
                 isInRoom = true;
                 document.getElementById('queue-overlay').style.display = 'none';
             });
@@ -532,8 +308,6 @@
                 document.getElementById('chat-wrapper').style.display = 'none';
                 document.getElementById('chat-messages').innerHTML = '';
                 selectedCards.clear(); updatePlayButton(); unlockInterface();
-                
-                // 已離場
                 isInRoom = false;
             });
             socket.on('receiveMessage', (data) => {
@@ -567,12 +341,9 @@
                     return;
                 }
                 
-                // === 大廳列表渲染 (含密碼房邏輯) ===
                 list.forEach(room => {
                     const isFull = room.count >= 10;
                     const isPlaying = room.status === 'Playing';
-                    
-                    // 檢查是否是加密房間 (ID 包含 #)
                     const isPrivate = room.id.includes('#');
                     const displayId = isPrivate ? room.id.split('#')[0] : room.id;
                     const lockIcon = isPrivate ? '🔒' : '🏠';
@@ -583,7 +354,7 @@
                     
                     if (!isFull && !isPlaying) {
                         if (isPrivate) {
-                            div.onclick = () => clickRoomItem(room.id); // 觸發密碼輸入
+                            div.onclick = () => clickRoomItem(room.id);
                         } else {
                             div.onclick = () => selectRoom(room.id);
                         }
@@ -652,23 +423,214 @@
             socket.on('errorMsg', (msg) => { alert(msg); unlockInterface(); });
         }
 
-        function renderDrawButton(stack) {
-            const btn = document.getElementById('draw-btn');
-            const txt = document.getElementById('draw-text');
-            const sub = document.getElementById('draw-sub');
-            if (stack > 0) {
-                btn.classList.add('penalty');
-                txt.innerText = `⚠️`;
-                sub.innerText = `領取 (+${stack})`;
-                sub.style.color = '#e74c3c';
-                sub.style.fontWeight = 'bold';
+        function playTurnSound() {
+            dingSound.currentTime = 0;
+            dingSound.play().catch(e => console.log("Sound error:", e));
+        }
+
+        function toggleChat() {
+            const box = document.getElementById('chat-box');
+            const btn = document.getElementById('chat-toggle-btn');
+            if (box.style.display === 'flex') {
+                box.style.display = 'none';
+                btn.style.display = 'flex';
             } else {
-                btn.classList.remove('penalty');
-                txt.innerText = `PASS`;
-                sub.innerText = `(抽牌)`;
-                sub.style.color = '#aaa';
-                sub.style.fontWeight = 'normal';
+                box.style.display = 'flex';
+                btn.style.display = 'none';
+                unreadCount = 0;
+                updateUnreadBadge();
+                scrollToBottom();
             }
+        }
+        function handleChatKey(e) { if (e.key === 'Enter') sendChat(); }
+        function sendChat() {
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if (text && socket) {
+                socket.emit('sendMessage', text);
+                input.value = '';
+            }
+        }
+        function appendMessage(name, text, isMine) {
+            const container = document.getElementById('chat-messages');
+            const div = document.createElement('div');
+            div.className = `msg ${isMine ? 'mine' : 'others'}`;
+            let nameHtml = isMine ? '' : `<span class="name">${name}</span>`;
+            div.innerHTML = `${nameHtml}${escapeHtml(text)}`;
+            container.appendChild(div);
+            scrollToBottom();
+            const box = document.getElementById('chat-box');
+            if (box.style.display !== 'flex') {
+                unreadCount++;
+                updateUnreadBadge();
+            }
+        }
+        function updateUnreadBadge() {
+            const badge = document.getElementById('chat-unread');
+            if (unreadCount > 0) {
+                badge.innerText = unreadCount;
+                badge.style.display = 'flex';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+        function scrollToBottom() {
+            const div = document.getElementById('chat-messages');
+            div.scrollTop = div.scrollHeight;
+        }
+        function escapeHtml(text) {
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+        }
+
+        function backToLobby() { location.reload(); }
+
+        function submitJoin() {
+            unlockAudio();
+            if(!socket) return alert("尚未連接到伺服器");
+            const rawRoomId = document.getElementById('room-id').value.trim();
+            const password = document.getElementById('room-pass').value.trim();
+            const name = document.getElementById('username').value.trim();
+            if(!rawRoomId || !name) return alert("請輸入房號和暱稱");
+            const finalRoomId = password ? `${rawRoomId}#${password}` : rawRoomId;
+            localStorage.setItem('last_room', rawRoomId);
+            localStorage.setItem('last_name', name);
+            socket.emit('joinGame', { name, roomId: finalRoomId });
+        }
+
+        function clickRoomItem(roomId) {
+            if (roomId.includes('#')) {
+                const cleanId = roomId.split('#')[0];
+                const inputPass = prompt(`房間 [${cleanId}] 需要密碼，請輸入：`);
+                if (inputPass === null) return; 
+                const name = document.getElementById('username').value.trim();
+                if(!name) return alert("請先輸入暱稱");
+                const tryId = `${cleanId}#${inputPass}`;
+                if (tryId !== roomId) { alert("密碼錯誤！"); return; }
+                socket.emit('joinGame', { name, roomId: tryId });
+            } else {
+                selectRoom(roomId);
+            }
+        }
+
+        function leaveGameAction() { if(socket) socket.emit('leaveGame'); }
+        function startGameAction() { if(socket) socket.emit('startGame'); }
+        function drawCardAction() { if(socket && !isProcessing) { lockInterface(); socket.emit('drawCard'); } }
+
+        function toggleCardSelection(cardId, element) {
+            if (isProcessing) return;
+            if (selectedCards.has(cardId)) {
+                selectedCards.delete(cardId);
+                element.classList.remove('selected');
+            } else {
+                selectedCards.add(cardId);
+                element.classList.add('selected');
+            }
+            updatePlayButton();
+        }
+
+        function updatePlayButton() {
+            const btn = document.getElementById('play-action-btn');
+            if (selectedCards.size > 0) {
+                btn.style.display = 'block';
+                btn.innerText = `出牌 (${selectedCards.size})`;
+            } else {
+                btn.style.display = 'none';
+            }
+        }
+
+        function confirmPlay() {
+            if (selectedCards.size === 0) return;
+            const cardIds = Array.from(selectedCards);
+            const cards = cardIds.map(id => window.myHandData.find(c => c.id === id)).filter(c => c);
+
+            if (cards.length > 1) {
+                const firstVal = cards[0].value;
+                const allSame = cards.every(c => c.value === firstVal);
+                if (!allSame) {
+                    alert("連擊失敗：你選的牌數字或功能不相同！");
+                    return; 
+                }
+            }
+
+            const hasBlack = cards.some(c => c.color === 'black');
+            const distinctPlayColors = [...new Set(cards.filter(c => c.color !== 'black').map(c => c.color))];
+            
+            let needsColorSelection = false;
+            if (hasBlack) {
+                needsColorSelection = true; 
+            } else if (cardIds.length > 1) {
+                if (distinctPlayColors.length > 1) {
+                    needsColorSelection = true;
+                } else {
+                    needsColorSelection = false;
+                }
+            }
+
+            if (needsColorSelection) {
+                pendingPlayData = cardIds;
+                let allowedColors = [];
+                if (hasBlack) {
+                    allowedColors = ['red', 'blue', 'green', 'yellow'];
+                } else {
+                    allowedColors = [...distinctPlayColors];
+                }
+                if (!hasBlack && currentActiveColor && currentActiveColor !== 'black') {
+                    allowedColors = allowedColors.filter(c => c !== currentActiveColor);
+                }
+                showColorModal(allowedColors);
+            } else {
+                sendPlay(cardIds, null);
+            }
+        }
+        
+        function showColorModal(allowedColors) {
+            const all = ['red', 'blue', 'green', 'yellow'];
+            all.forEach(c => {
+                const btn = document.getElementById(`modal-btn-${c}`);
+                if (allowedColors.includes(c)) {
+                    btn.classList.remove('disabled');
+                } else {
+                    btn.classList.add('disabled');
+                }
+            });
+            document.getElementById('color-modal').style.display = 'flex';
+        }
+
+        function selectColor(color) {
+            if (pendingPlayData && socket) {
+                sendPlay(pendingPlayData, color);
+                closeColorModal();
+            }
+        }
+
+        function sendPlay(ids, color) {
+            if(!socket || isProcessing) return;
+            lockInterface();
+            socket.emit('playCard', { cardIds: ids, chooseColor: color });
+            selectedCards.clear();
+            updatePlayButton();
+        }
+
+        function closeColorModal() {
+            document.getElementById('color-modal').style.display = 'none';
+            pendingPlayData = null;
+        }
+
+        function lockInterface() {
+            isProcessing = true;
+            document.getElementById('my-hand').classList.add('processing');
+        }
+        function unlockInterface() {
+            isProcessing = false;
+            document.getElementById('my-hand').classList.remove('processing');
+        }
+
+        function selectRoom(id) {
+            document.getElementById('room-id').value = id;
+            const input = document.getElementById('room-id');
+            input.style.backgroundColor = '#444';
+            setTimeout(() => input.style.backgroundColor = '#fff', 200);
         }
 
         function createCardEl(c) {
@@ -739,6 +701,25 @@
             if(c === 'green') return '綠色';
             if(c === 'yellow') return '黃色';
             return c;
+        }
+
+        function renderDrawButton(stack) {
+            const btn = document.getElementById('draw-btn');
+            const txt = document.getElementById('draw-text');
+            const sub = document.getElementById('draw-sub');
+            if (stack > 0) {
+                btn.classList.add('penalty');
+                txt.innerText = `⚠️`;
+                sub.innerText = `領取 (+${stack})`;
+                sub.style.color = '#e74c3c';
+                sub.style.fontWeight = 'bold';
+            } else {
+                btn.classList.remove('penalty');
+                txt.innerText = `PASS`;
+                sub.innerText = `(抽牌)`;
+                sub.style.color = '#aaa';
+                sub.style.fontWeight = 'normal';
+            }
         }
     </script>
 </body>
