@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>UNO Online v3.9 (With UNO Button)</title>
+    <title>UNO Online v4.0</title>
    <style>
         body { font-family: 'Arial', sans-serif; background: #1e272e; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
@@ -22,7 +22,7 @@
 
         /* 排隊等待畫面 */
         #queue-overlay {
-            display: none; /* 預設隱藏 */
+            display: none; 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(30, 39, 46, 0.98);
             z-index: 9999; 
@@ -115,32 +115,18 @@
         #exit-btn { background: #e74c3c; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 14px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
         #exit-btn:hover { background: #c0392b; }
 
-        /* === 新增：UNO 按鈕樣式 === */
+        /* UNO 按鈕 */
         #uno-btn {
-            position: absolute;
-            bottom: 250px;
-            right: 20px;
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            background: #ff5555;
-            border: 5px solid white;
-            color: white;
-            font-weight: 800;
-            font-size: 24px;
-            cursor: pointer;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-            display: none; /* 預設隱藏 */
-            z-index: 600;
-            animation: pulse 1s infinite;
-            text-shadow: 2px 2px 0 #c0392b;
+            position: absolute; bottom: 250px; right: 20px;
+            width: 80px; height: 80px; border-radius: 50%;
+            background: #ff5555; border: 5px solid white;
+            color: white; font-weight: 800; font-size: 24px;
+            cursor: pointer; box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            display: none; z-index: 600;
+            animation: pulse 1s infinite; text-shadow: 2px 2px 0 #c0392b;
         }
         #uno-btn:active { transform: scale(0.9); }
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-            100% { transform: scale(1); }
-        }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
     </style>
 </head>
 <body>
@@ -165,7 +151,6 @@
         </div>
         <div id="my-area">
             <button id="uno-btn" onclick="sayUnoAction()">UNO!</button>
-            
             <button id="play-action-btn" onclick="confirmPlay()">確認出牌</button>
             <div id="status-bar">準備開始</div>
             <div id="my-hand"></div>
@@ -188,14 +173,11 @@
         const dingSound = new Audio("ding.mp3");
         dingSound.load();
 
-        // 混淆網址
         const _0x1 = "aHR0cHM6Ly91bm8udHRjdHYtMTA1LmNj"; 
 
         function initGameSystem() {
             const serverUrl = atob(_0x1);
-            
             try {
-                // 恢復使用普通的連線方式 (不強制 websocket，讓 socket.io 自動選擇最佳方式)
                 socket = io(serverUrl);
                 setupSocketEvents();
             } catch (e) {
@@ -204,15 +186,10 @@
             }
         }
 
-        // === 新增：按下 UNO 按鈕的動作 ===
         function sayUnoAction() {
             if (socket) {
-                // 告訴伺服器我喊了 UNO (如果後端有處理)
                 socket.emit('sayUno'); 
-                // 在聊天室顯示給所有人看
                 socket.emit('sendMessage', '🔥 UNO! 我剩下最後一張牌了！');
-                
-                // 按下後隱藏按鈕，避免重複按
                 document.getElementById('uno-btn').style.display = 'none';
             }
         }
@@ -228,8 +205,13 @@
             if(localStorage.getItem('last_room')) document.getElementById('room-id').value = localStorage.getItem('last_room');
             if(localStorage.getItem('last_name')) document.getElementById('username').value = localStorage.getItem('last_name');
             document.getElementById('server-max').innerText = MAX_SERVER_CAPACITY;
-            
             setTimeout(initGameSystem, 100);
+        }
+
+        // === 安全防護函數：轉義 HTML 特殊字符 ===
+        function escapeHtml(text) {
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return text.replace(/[&<>"']/g, function(m) { return map[m]; });
         }
 
         function setupSocketEvents() {
@@ -242,7 +224,9 @@
                 document.getElementById('start-btn').style.display = 'none'; 
                 document.getElementById('leave-btn').style.display = 'inline-block';
                 
-                const displayRoomId = roomId.includes('#') ? roomId.split('#')[0] : roomId;
+                // === 安全防護：房號轉義 ===
+                const cleanRoomId = escapeHtml(roomId);
+                const displayRoomId = cleanRoomId.includes('#') ? cleanRoomId.split('#')[0] : cleanRoomId;
                 document.getElementById('current-room-display').innerText = displayRoomId;
                 
                 document.getElementById('chat-wrapper').style.display = 'flex';
@@ -260,9 +244,10 @@
                 document.getElementById('chat-messages').innerHTML = '';
                 selectedCards.clear(); updatePlayButton(); unlockInterface();
                 isInRoom = false;
-                document.getElementById('uno-btn').style.display = 'none'; // 重置 UNO 按鈕
+                document.getElementById('uno-btn').style.display = 'none';
             });
             socket.on('receiveMessage', (data) => {
+                // escapeHtml 已在 appendMessage 內部被使用 (但可以再次檢查)
                 appendMessage(data.name, data.text, data.name === document.getElementById('username').value);
             });
             
@@ -297,7 +282,11 @@
                     const isFull = room.count >= 10;
                     const isPlaying = room.status === 'Playing';
                     const isPrivate = room.id.includes('#');
-                    const displayId = isPrivate ? room.id.split('#')[0] : room.id;
+                    
+                    // === 安全防護：列表房號轉義 ===
+                    const safeId = escapeHtml(room.id);
+                    const displayId = isPrivate ? safeId.split('#')[0] : safeId;
+                    
                     const lockIcon = isPrivate ? '🔒' : '🏠';
                     const lockedClass = isPrivate ? 'locked' : '';
                     
@@ -361,7 +350,7 @@
                 const div = document.getElementById('my-hand');
                 div.innerHTML = '';
                 
-                // === 新增：檢查手牌數量，控制 UNO 按鈕顯示 ===
+                // UNO 按鈕顯示邏輯
                 const unoBtn = document.getElementById('uno-btn');
                 if (hand.length === 1) {
                     unoBtn.style.display = 'block';
@@ -417,6 +406,7 @@
             const div = document.createElement('div');
             div.className = `msg ${isMine ? 'mine' : 'others'}`;
             let nameHtml = isMine ? '' : `<span class="name">${name}</span>`;
+            // 這裡也使用了 escapeHtml 防止聊天室 XSS
             div.innerHTML = `${nameHtml}${escapeHtml(text)}`;
             container.appendChild(div);
             scrollToBottom();
@@ -439,10 +429,6 @@
             const div = document.getElementById('chat-messages');
             div.scrollTop = div.scrollHeight;
         }
-        function escapeHtml(text) {
-            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-            return text.replace(/[&<>"']/g, function(m) { return map[m]; });
-        }
 
         function backToLobby() { location.reload(); }
 
@@ -452,7 +438,14 @@
             const rawRoomId = document.getElementById('room-id').value.trim();
             const password = document.getElementById('room-pass').value.trim();
             const name = document.getElementById('username').value.trim();
+            
             if(!rawRoomId || !name) return alert("請輸入房號和暱稱");
+            
+            // === 安全防護：禁止包含 HTML 標籤符號 ===
+            if (/[<>]/.test(rawRoomId) || /[<>]/.test(name)) {
+                return alert("房號或暱稱不能包含特殊符號 (< >)");
+            }
+
             const finalRoomId = password ? `${rawRoomId}#${password}` : rawRoomId;
             localStorage.setItem('last_room', rawRoomId);
             localStorage.setItem('last_name', name);
@@ -466,6 +459,10 @@
                 if (inputPass === null) return; 
                 const name = document.getElementById('username').value.trim();
                 if(!name) return alert("請先輸入暱稱");
+                
+                // === 安全防護：檢查暱稱 ===
+                if (/[<>]/.test(name)) return alert("暱稱不能包含特殊符號");
+
                 const tryId = `${cleanId}#${inputPass}`;
                 if (tryId !== roomId) { alert("密碼錯誤！"); return; }
                 socket.emit('joinGame', { name, roomId: tryId });
