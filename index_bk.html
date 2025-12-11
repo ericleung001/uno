@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>UNO Online Final Fix</title>
+    <title>UNO Online Final v2.1</title>
     <style>
         body { font-family: 'Arial', sans-serif; background: #1e272e; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
@@ -19,6 +19,34 @@
         #game-over-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 1000; justify-content: center; align-items: center; flex-direction: column; text-align: center; }
         #winner-text { font-size: 40px; color: #f1c40f; margin-bottom: 20px; font-weight: bold; }
         #back-lobby-btn { padding: 15px 40px; font-size: 20px; background: #2ecc71; color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; }
+
+        /* 排隊等待畫面 */
+        #queue-overlay {
+            display: none; /* 預設隱藏 */
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(30, 39, 46, 0.98);
+            z-index: 9999; /* 確保擋住所有東西 */
+            justify-content: center; align-items: center; flex-direction: column;
+            text-align: center;
+        }
+        #queue-content {
+            background: #2f3640;
+            padding: 40px;
+            border-radius: 20px;
+            border: 2px solid #fbc531;
+            box-shadow: 0 0 50px rgba(0,0,0,0.8);
+            animation: fadeIn 0.5s;
+        }
+        .spinner {
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid #fbc531;
+            border-radius: 50%;
+            width: 60px; height: 60px;
+            animation: spin 2s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
         /* 通知與聊天室 */
         #notification-bar { position: fixed; top: 10%; left: 50%; transform: translateX(-50%); background: rgba(255, 165, 2, 0.95); color: black; padding: 12px 25px; border-radius: 30px; font-weight: bold; font-size: 18px; z-index: 200; display: none; box-shadow: 0 5px 15px rgba(0,0,0,0.5); white-space: nowrap; }
@@ -105,6 +133,15 @@
 </head>
 <body>
 
+    <div id="queue-overlay">
+        <div id="queue-content">
+            <h1 style="color: #fbc531; font-size: 32px; margin-bottom: 10px;">⚠️ 伺服器滿員</h1>
+            <div class="spinner"></div>
+            <p style="font-size: 20px; margin-bottom: 5px;">目前在線人數: <span id="server-count" style="color: #00ff00; font-weight: bold;">0</span> / <span id="server-max">50</span></p>
+            <p style="color: #aaa; font-size: 14px;">正在排隊中，請稍候...<br>當有人離開時將自動進入。</p>
+        </div>
+    </div>
+
     <div id="color-modal">
         <h2 style="margin-bottom: 30px; font-size: 28px;">請選擇主要顏色</h2>
         <div id="color-options">
@@ -146,7 +183,7 @@
         <div id="join-form">
             <input type="text" id="room-id" placeholder="輸入房號 或 點擊下方">
             <input type="text" id="username" placeholder="你的暱稱">
-            <button onclick="submitJoin()">加入 / 創建房間</button> 
+            <button id="join-btn" onclick="submitJoin()">加入 / 創建房間</button> 
         </div>
         <p id="wait-msg" style="color:#aaa; margin-top:20px; display:none;"></p>
         <div style="display:flex; justify-content:center;">
@@ -192,7 +229,13 @@
         let pendingPlayData = null;
         let unreadCount = 0;
         let lastActivePlayer = null;
-        let currentActiveColor = null; 
+        let currentActiveColor = null;
+        
+        // === 設定：最大伺服器人數 (測試用 3, 發佈請改 50) ===
+        const MAX_SERVER_CAPACITY = 50; 
+        
+        // === 關鍵修正：判斷是否已經在房間內 ===
+        let isInRoom = false;
 
         const dingSound = new Audio("ding.mp3");
         dingSound.load();
@@ -207,6 +250,7 @@
         window.onload = function() {
             if(localStorage.getItem('last_room')) document.getElementById('room-id').value = localStorage.getItem('last_room');
             if(localStorage.getItem('last_name')) document.getElementById('username').value = localStorage.getItem('last_name');
+            document.getElementById('server-max').innerText = MAX_SERVER_CAPACITY;
         }
 
         function playTurnSound() {
@@ -308,15 +352,11 @@
             }
         }
 
-        // ============================================
-        // === 修正版邏輯：同色連擊直出 + Wild 強制選 ===
-        // ============================================
         function confirmPlay() {
             if (selectedCards.size === 0) return;
             const cardIds = Array.from(selectedCards);
             const cards = cardIds.map(id => window.myHandData.find(c => c.id === id)).filter(c => c);
 
-            // 1. 檢查數字/功能是否一致
             if (cards.length > 1) {
                 const firstVal = cards[0].value;
                 const allSame = cards.every(c => c.value === firstVal);
@@ -327,22 +367,17 @@
             }
 
             const hasBlack = cards.some(c => c.color === 'black');
-            // 找出這次出牌包含的所有「有色」顏色 (排除 Wild 黑色)
             const distinctPlayColors = [...new Set(cards.filter(c => c.color !== 'black').map(c => c.color))];
             
-            // 2. 判斷是否需要彈出顏色選擇視窗
             let needsColorSelection = false;
 
             if (hasBlack) {
-                needsColorSelection = true; // 有黑牌(Wild)一定彈窗
+                needsColorSelection = true; 
             } else if (cardIds.length > 1) {
-                // 連擊情況：
-                // 如果是「雜色連擊」(紅+藍)，必須選色 (needsColorSelection = true)
-                // 如果是「純色連擊」(紅+紅)，因為沒有顏色歧義，直接出牌 (needsColorSelection = false)
                 if (distinctPlayColors.length > 1) {
                     needsColorSelection = true;
                 } else {
-                    needsColorSelection = false; // 純色連擊，直出
+                    needsColorSelection = false;
                 }
             }
 
@@ -350,15 +385,12 @@
                 pendingPlayData = cardIds;
                 
                 let allowedColors = [];
-                
-                // 步驟 A: 決定基礎候選顏色
                 if (hasBlack) {
                     allowedColors = ['red', 'blue', 'green', 'yellow'];
                 } else {
                     allowedColors = [...distinctPlayColors];
                 }
 
-                // 步驟 B: 執行「不可回馬槍」過濾 (Wild 免死金牌)
                 if (!hasBlack && currentActiveColor && currentActiveColor !== 'black') {
                     allowedColors = allowedColors.filter(c => c !== currentActiveColor);
                 }
@@ -366,7 +398,6 @@
                 showColorModal(allowedColors);
 
             } else {
-                // 不需要選色，直接出牌
                 sendPlay(cardIds, null);
             }
         }
@@ -433,6 +464,10 @@
                 document.getElementById('leave-btn').style.display = 'inline-block';
                 document.getElementById('current-room-display').innerText = roomId;
                 document.getElementById('chat-wrapper').style.display = 'flex';
+                
+                // === 關鍵修正：進入房間後，設置 isInRoom 為 true ===
+                isInRoom = true;
+                document.getElementById('queue-overlay').style.display = 'none';
             });
             socket.on('leftGameSuccess', () => {
                 document.getElementById('join-form').style.display = 'flex';
@@ -444,13 +479,40 @@
                 document.getElementById('chat-wrapper').style.display = 'none';
                 document.getElementById('chat-messages').innerHTML = '';
                 selectedCards.clear(); updatePlayButton(); unlockInterface();
+                
+                // === 關鍵修正：離開房間回到大廳，設置 isInRoom 為 false ===
+                // 這會觸發 roomListUpdate 重新檢查人數，如果滿員則顯示排隊
+                isInRoom = false;
             });
             socket.on('receiveMessage', (data) => {
                 appendMessage(data.name, data.text, data.name === document.getElementById('username').value);
             });
+            
+            // === 排隊邏輯核心 (V3) ===
             socket.on('roomListUpdate', (list) => {
                 const container = document.getElementById('lobby-list');
                 container.innerHTML = '';
+                
+                let totalPlayers = 0;
+                if (list && list.length > 0) {
+                    list.forEach(room => totalPlayers += room.count);
+                }
+                
+                document.getElementById('server-count').innerText = totalPlayers;
+                const queueOverlay = document.getElementById('queue-overlay');
+
+                // === 邏輯：如果你在房間內 (isInRoom)，不管人數多少，都不顯示排隊 ===
+                if (isInRoom) {
+                    queueOverlay.style.display = 'none';
+                } else {
+                    // === 如果你不在房間內 (在大廳)，且人數已滿 -> 排隊 ===
+                    if (totalPlayers >= MAX_SERVER_CAPACITY) {
+                        queueOverlay.style.display = 'flex';
+                    } else {
+                        queueOverlay.style.display = 'none';
+                    }
+                }
+
                 if (!list || list.length === 0) {
                     container.innerHTML = '<div style="color:#777; font-size:14px; text-align:center">暫無房間，請自行創建</div>';
                     return;
@@ -486,6 +548,8 @@
                 unlockInterface();
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('game-screen').style.display = 'flex';
+                // 遊戲中強制隱藏排隊
+                document.getElementById('queue-overlay').style.display = 'none';
                 
                 currentActiveColor = state.topCard.tempColor || (state.topCard.color !== 'black' ? state.topCard.color : null);
 
