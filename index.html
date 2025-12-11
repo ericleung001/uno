@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>UNO Online Final v3.1</title>
+    <title>UNO Online v3.2</title>
    <style>
         body { font-family: 'Arial', sans-serif; background: #1e272e; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
@@ -5064,21 +5064,20 @@
         let unreadCount = 0;
         let lastActivePlayer = null;
         let currentActiveColor = null;
-        const MAX_SERVER_CAPACITY = 3; 
+        const MAX_SERVER_CAPACITY = 50; 
         let isInRoom = false;
 
         const dingSound = new Audio("ding.mp3");
         dingSound.load();
 
-        // 混淆的連線網址 (解碼後是真實網址)
-        // 這樣別人F12看不到明文，只能看到一串亂碼
+       
         const _0x1 = "aHR0cHM6Ly91bm8udHRjdHYtMTA1LmNj"; 
 
         function initGameSystem() {
             const serverUrl = atob(_0x1); // 解碼
             
             try {
-                // 直接使用上面 <script> 貼上的代碼產生的 io 物件
+              
                 socket = io(serverUrl);
                 setupSocketEvents();
             } catch (e) {
