@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>UNO Online Final</title>
+    <title>UNO Online Final Fixed</title>
     <style>
         body { font-family: 'Arial', sans-serif; background: #1e272e; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
@@ -20,24 +20,30 @@
         #winner-text { font-size: 40px; color: #f1c40f; margin-bottom: 20px; font-weight: bold; }
         #back-lobby-btn { padding: 15px 40px; font-size: 20px; background: #2ecc71; color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; }
 
-        /* === 新增：對手斷線離開按鈕 === */
+        /* === 斷線離開按鈕 (紅色大按鈕) === */
         #solo-leave-btn { 
-            display: none; 
+            display: none; /* 預設隱藏 */
             position: fixed; 
             top: 50%; 
             left: 50%; 
             transform: translate(-50%, -50%); 
-            padding: 20px 40px; 
-            font-size: 22px; 
+            padding: 30px 50px; 
+            font-size: 24px; 
             background: #e74c3c; 
             color: white; 
-            border: 4px solid white; 
-            border-radius: 15px; 
+            border: 5px solid white; 
+            border-radius: 20px; 
             cursor: pointer; 
-            z-index: 2000; 
-            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+            z-index: 9999; /* 最上層 */
+            box-shadow: 0 0 50px rgba(0,0,0,0.9);
             font-weight: bold;
             text-align: center;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.05); }
+            100% { transform: translate(-50%, -50%) scale(1); }
         }
         #solo-leave-btn:hover { background: #c0392b; }
 
@@ -121,7 +127,7 @@
     </div>
 
     <button id="solo-leave-btn" onclick="backToLobby()">
-        🚫 所有對手已離開<br>點擊返回大廳
+        ⚠️ 剩餘 1 人 (對手斷線)<br>點擊返回大廳
     </button>
 
     <div id="notification-bar"></div>
@@ -307,9 +313,6 @@
             }
         }
 
-        // ============================================
-        // === 最終修正版邏輯：Wild 無限制，連擊才過濾 ===
-        // ============================================
         function confirmPlay() {
             if (selectedCards.size === 0) return;
             const cardIds = Array.from(selectedCards);
@@ -331,21 +334,16 @@
             // 2. 判斷是否需要彈出顏色選擇視窗
             let needsColorSelection = false;
 
-            // 條件 A: 有黑牌 (Wild) -> 必須選色
             if (hasBlack) {
                 needsColorSelection = true;
-            }
-            // 條件 B: 多張牌連擊 (即使顏色單一，為了執行過濾邏輯，也視為需要選色)
-            else if (cardIds.length > 1) {
+            } else if (cardIds.length > 1) {
                 needsColorSelection = true;
             }
 
             if (needsColorSelection) {
                 pendingPlayData = cardIds;
-                
                 let allowedColors = [];
                 
-                // 步驟 A: 決定基礎候選顏色
                 if (hasBlack) {
                     allowedColors = ['red', 'blue', 'green', 'yellow'];
                 } else {
@@ -361,7 +359,6 @@
                 showColorModal(allowedColors);
 
             } else {
-                // 不需要選色，直接出牌
                 sendPlay(cardIds, null);
             }
         }
@@ -438,7 +435,7 @@
                 document.getElementById('login-screen').style.display = 'flex';
                 document.getElementById('chat-wrapper').style.display = 'none';
                 document.getElementById('chat-messages').innerHTML = '';
-                document.getElementById('solo-leave-btn').style.display = 'none'; // 重置按鈕
+                document.getElementById('solo-leave-btn').style.display = 'none';
                 selectedCards.clear(); updatePlayButton(); unlockInterface();
             });
             socket.on('receiveMessage', (data) => {
@@ -463,13 +460,23 @@
                     container.appendChild(div);
                 });
             });
+            
+            // === 關鍵修正：在這裡也加入斷線檢測 ===
             socket.on('updatePlayerList', (players) => {
                 const msgEl = document.getElementById('wait-msg');
                 if(msgEl) msgEl.innerText = `房間人數: ${players.map(p=>p.name).join(', ')} (${players.length}/10)`;
                 const btn = document.getElementById('start-btn');
                 if(players.length >= 2) btn.style.display = 'inline-block';
                 else btn.style.display = 'none';
+
+                // 如果遊戲正在進行 (game-screen顯示中) 且人數剩下 1 人 -> 顯示斷線按鈕
+                const gameScreen = document.getElementById('game-screen');
+                const soloBtn = document.getElementById('solo-leave-btn');
+                if (gameScreen.style.display === 'flex' && players.length < 2) {
+                    soloBtn.style.display = 'block';
+                }
             });
+
             socket.on('notification', (msg) => {
                 const bar = document.getElementById('notification-bar');
                 bar.innerText = msg;
@@ -481,7 +488,7 @@
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('game-screen').style.display = 'flex';
                 
-                // === 新增：檢測是否剩下自己一人 ===
+                // 這裡保留檢測，作為雙重保險
                 const soloBtn = document.getElementById('solo-leave-btn');
                 if (state.players.length < 2) {
                     soloBtn.style.display = 'block';
@@ -521,7 +528,7 @@
             socket.on('gameOver', (msg) => { 
                 document.getElementById('winner-text').innerText = msg;
                 document.getElementById('game-over-modal').style.display = 'flex';
-                document.getElementById('solo-leave-btn').style.display = 'none'; // 結束時隱藏斷線按鈕
+                document.getElementById('solo-leave-btn').style.display = 'none'; 
             });
             socket.on('errorMsg', (msg) => { alert(msg); unlockInterface(); });
         }
