@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>UNO Online Final v2.3</title>
+    <title>UNO Online Final v2.4</title>
     <style>
         body { font-family: 'Arial', sans-serif; background: #1e272e; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
@@ -238,9 +238,7 @@
         const dingSound = new Audio("ding.mp3");
         dingSound.load();
 
-        // === 混淆處理：隱藏 Socket.io 網址 ===
-        // 將 'https://uno.ttctv-105.cc' 轉為 Base64 字串
-        // 這樣在源代碼中就不會直接看到網址
+        
         const _0x1 = "aHR0cHM6Ly91bm8udHRjdHYtMTA1LmNj"; // Base64 of URL
 
         function initGameSystem() {
