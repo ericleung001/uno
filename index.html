@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>UNO Online Final Fixed</title>
+    <title>UNO Online Final v6</title>
     <style>
         body { font-family: 'Arial', sans-serif; background: #1e272e; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
@@ -19,33 +19,6 @@
         #game-over-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 1000; justify-content: center; align-items: center; flex-direction: column; text-align: center; }
         #winner-text { font-size: 40px; color: #f1c40f; margin-bottom: 20px; font-weight: bold; }
         #back-lobby-btn { padding: 15px 40px; font-size: 20px; background: #2ecc71; color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; }
-
-        /* === 斷線離開按鈕 (紅色大按鈕) === */
-        #solo-leave-btn { 
-            display: none; /* 預設隱藏 */
-            position: fixed; 
-            top: 50%; 
-            left: 50%; 
-            transform: translate(-50%, -50%); 
-            padding: 30px 50px; 
-            font-size: 24px; 
-            background: #e74c3c; 
-            color: white; 
-            border: 5px solid white; 
-            border-radius: 20px; 
-            cursor: pointer; 
-            z-index: 9999; /* 最上層 */
-            box-shadow: 0 0 50px rgba(0,0,0,0.9);
-            font-weight: bold;
-            text-align: center;
-            animation: pulse 2s infinite;
-        }
-        @keyframes pulse {
-            0% { transform: translate(-50%, -50%) scale(1); }
-            50% { transform: translate(-50%, -50%) scale(1.05); }
-            100% { transform: translate(-50%, -50%) scale(1); }
-        }
-        #solo-leave-btn:hover { background: #c0392b; }
 
         /* 通知與聊天室 */
         #notification-bar { position: fixed; top: 10%; left: 50%; transform: translateX(-50%); background: rgba(255, 165, 2, 0.95); color: black; padding: 12px 25px; border-radius: 30px; font-weight: bold; font-size: 18px; z-index: 200; display: none; box-shadow: 0 5px 15px rgba(0,0,0,0.5); white-space: nowrap; }
@@ -105,7 +78,30 @@
 
         #status-bar { text-align: center; font-size: 20px; margin-bottom: 10px; min-height: 30px; font-weight: bold; }
         .current-color-hint { position: absolute; bottom: -50px; background: rgba(0,0,0,0.8); padding: 8px 20px; border-radius: 20px; font-size: 16px; border: 1px solid white; }
-        #room-info { position: absolute; top: 15px; right: 15px; font-size: 16px; color: #7f8fa6; font-weight: bold; }
+        
+        /* === 修正：右上角房間資訊與退出按鈕樣式 === */
+        #room-info { 
+            position: absolute; 
+            top: 15px; 
+            right: 15px; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: flex-end; /* 靠右對齊 */
+            gap: 5px;
+        }
+        #room-text { font-size: 16px; color: #7f8fa6; font-weight: bold; }
+        #exit-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        #exit-btn:hover { background: #c0392b; }
     </style>
 </head>
 <body>
@@ -125,10 +121,6 @@
         <div id="winner-text"></div>
         <button id="back-lobby-btn" onclick="backToLobby()">返回大廳</button>
     </div>
-
-    <button id="solo-leave-btn" onclick="backToLobby()">
-        ⚠️ 剩餘 1 人 (對手斷線)<br>點擊返回大廳
-    </button>
 
     <div id="notification-bar"></div>
 
@@ -167,7 +159,11 @@
     </div>
 
     <div id="game-screen">
-        <div id="room-info">Room: <span id="current-room-display"></span></div>
+        <div id="room-info">
+            <div id="room-text">Room: <span id="current-room-display"></span></div>
+            <button id="exit-btn" onclick="backToLobby()">退出房間</button>
+        </div>
+
         <div id="opponents"></div>
         <div id="center">
             <div id="direction-indicator">順時針 ↻</div>
@@ -313,6 +309,9 @@
             }
         }
 
+        // ============================================
+        // === 最終確認出牌邏輯 (Wild 無限 + 連擊過濾) ===
+        // ============================================
         function confirmPlay() {
             if (selectedCards.size === 0) return;
             const cardIds = Array.from(selectedCards);
@@ -334,16 +333,21 @@
             // 2. 判斷是否需要彈出顏色選擇視窗
             let needsColorSelection = false;
 
+            // 條件 A: 有黑牌 (Wild) -> 必須選色
             if (hasBlack) {
                 needsColorSelection = true;
-            } else if (cardIds.length > 1) {
+            }
+            // 條件 B: 多張牌連擊 (即使顏色單一，為了執行過濾邏輯，也視為需要選色)
+            else if (cardIds.length > 1) {
                 needsColorSelection = true;
             }
 
             if (needsColorSelection) {
                 pendingPlayData = cardIds;
+                
                 let allowedColors = [];
                 
+                // 步驟 A: 決定基礎候選顏色
                 if (hasBlack) {
                     allowedColors = ['red', 'blue', 'green', 'yellow'];
                 } else {
@@ -359,6 +363,7 @@
                 showColorModal(allowedColors);
 
             } else {
+                // 不需要選色，直接出牌
                 sendPlay(cardIds, null);
             }
         }
@@ -435,7 +440,6 @@
                 document.getElementById('login-screen').style.display = 'flex';
                 document.getElementById('chat-wrapper').style.display = 'none';
                 document.getElementById('chat-messages').innerHTML = '';
-                document.getElementById('solo-leave-btn').style.display = 'none';
                 selectedCards.clear(); updatePlayButton(); unlockInterface();
             });
             socket.on('receiveMessage', (data) => {
@@ -461,20 +465,12 @@
                 });
             });
             
-            // === 關鍵修正：在這裡也加入斷線檢測 ===
             socket.on('updatePlayerList', (players) => {
                 const msgEl = document.getElementById('wait-msg');
                 if(msgEl) msgEl.innerText = `房間人數: ${players.map(p=>p.name).join(', ')} (${players.length}/10)`;
                 const btn = document.getElementById('start-btn');
                 if(players.length >= 2) btn.style.display = 'inline-block';
                 else btn.style.display = 'none';
-
-                // 如果遊戲正在進行 (game-screen顯示中) 且人數剩下 1 人 -> 顯示斷線按鈕
-                const gameScreen = document.getElementById('game-screen');
-                const soloBtn = document.getElementById('solo-leave-btn');
-                if (gameScreen.style.display === 'flex' && players.length < 2) {
-                    soloBtn.style.display = 'block';
-                }
             });
 
             socket.on('notification', (msg) => {
@@ -488,14 +484,6 @@
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('game-screen').style.display = 'flex';
                 
-                // 這裡保留檢測，作為雙重保險
-                const soloBtn = document.getElementById('solo-leave-btn');
-                if (state.players.length < 2) {
-                    soloBtn.style.display = 'block';
-                } else {
-                    soloBtn.style.display = 'none';
-                }
-
                 currentActiveColor = state.topCard.tempColor || (state.topCard.color !== 'black' ? state.topCard.color : null);
 
                 renderDiscard(state.topCard);
@@ -528,7 +516,6 @@
             socket.on('gameOver', (msg) => { 
                 document.getElementById('winner-text').innerText = msg;
                 document.getElementById('game-over-modal').style.display = 'flex';
-                document.getElementById('solo-leave-btn').style.display = 'none'; 
             });
             socket.on('errorMsg', (msg) => { alert(msg); unlockInterface(); });
         }
