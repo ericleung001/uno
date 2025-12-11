@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>UNO Online Final v2.1</title>
+    <title>UNO Online Final - Password Room</title>
     <style>
         body { font-family: 'Arial', sans-serif; background: #1e272e; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
@@ -25,7 +25,7 @@
             display: none; /* 預設隱藏 */
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(30, 39, 46, 0.98);
-            z-index: 9999; /* 確保擋住所有東西 */
+            z-index: 9999; 
             justify-content: center; align-items: center; flex-direction: column;
             text-align: center;
         }
@@ -70,6 +70,11 @@
         #login-screen { position: absolute; top:0; left:0; width:100%; height:100%; background: #2f3640; z-index:99; display:flex; flex-direction:column; align-items:center; justify-content:center; }
         #join-form { display: flex; flex-direction: column; align-items: center; }
         input { padding:12px; font-size:18px; margin:8px; text-align:center; border-radius: 8px; border:none; width: 220px; outline: none; }
+        
+        /* 密碼輸入框樣式 */
+        #room-pass { background: #dcdcdc; color: #333; }
+        #room-pass:focus { background: white; }
+
         button { padding:12px 30px; font-size:18px; background:#e67e22; color:white; border:none; border-radius:8px; cursor:pointer; font-weight: bold; margin-top: 10px; }
         #leave-btn { background: #e74c3c; margin-left: 10px; display: none; }
         #lobby-list { margin-top: 30px; width: 320px; max-height: 200px; overflow-y: auto; background: rgba(0,0,0,0.3); border-radius: 10px; padding: 10px; }
@@ -79,6 +84,9 @@
         .room-status { font-size: 12px; padding: 4px 10px; border-radius: 12px; }
         .status-wait { background: #2ecc71; color: white; }
         .status-play { background: #e74c3c; color: white; }
+        
+        /* 鎖定房間的樣式 */
+        .room-item.locked { border-left: 5px solid #f1c40f; }
 
         /* 遊戲畫面 */
         #game-screen { display: none; flex-direction: column; height: 100%; }
@@ -182,6 +190,7 @@
         <h1 style="font-size: 50px; margin-bottom: 20px;">UNO <span style="color:#ffaa00">Online</span></h1>
         <div id="join-form">
             <input type="text" id="room-id" placeholder="輸入房號 或 點擊下方">
+            <input type="password" id="room-pass" placeholder="密碼 (選填)" style="font-size: 16px;">
             <input type="text" id="username" placeholder="你的暱稱">
             <button id="join-btn" onclick="submitJoin()">加入 / 創建房間</button> 
         </div>
@@ -231,10 +240,10 @@
         let lastActivePlayer = null;
         let currentActiveColor = null;
         
-        // === 設定：最大伺服器人數 (測試用 3, 發佈請改 50) ===
+        // === 設定：最大伺服器人數 (測試用 50) ===
         const MAX_SERVER_CAPACITY = 50; 
         
-        // === 關鍵修正：判斷是否已經在房間內 ===
+        // 判斷是否已經在房間內
         let isInRoom = false;
 
         const dingSound = new Audio("ding.mp3");
@@ -315,15 +324,55 @@
 
         function backToLobby() { location.reload(); }
 
+        // === 修改：加入密碼處理邏輯 ===
         function submitJoin() {
             unlockAudio();
             if(!socket) return alert("尚未連接到伺服器");
-            const roomId = document.getElementById('room-id').value.trim();
+            
+            const rawRoomId = document.getElementById('room-id').value.trim();
+            const password = document.getElementById('room-pass').value.trim();
             const name = document.getElementById('username').value.trim();
-            if(!roomId || !name) return alert("請輸入房號和暱稱");
-            localStorage.setItem('last_room', roomId);
+            
+            if(!rawRoomId || !name) return alert("請輸入房號和暱稱");
+            
+            // 如果有密碼，合併成 "房號#密碼" 格式
+            const finalRoomId = password ? `${rawRoomId}#${password}` : rawRoomId;
+
+            localStorage.setItem('last_room', rawRoomId);
             localStorage.setItem('last_name', name);
-            socket.emit('joinGame', { name, roomId });
+            
+            socket.emit('joinGame', { name, roomId: finalRoomId });
+        }
+
+        // 點擊大廳列表時的邏輯
+        function clickRoomItem(roomId) {
+            // 檢查是否是加密房間
+            if (roomId.includes('#')) {
+                const cleanId = roomId.split('#')[0];
+                const inputPass = prompt(`房間 [${cleanId}] 需要密碼，請輸入：`);
+                if (inputPass === null) return; // 取消
+                
+                // 嘗試拼接密碼並加入
+                const name = document.getElementById('username').value.trim();
+                if(!name) return alert("請先輸入暱稱");
+                
+                const tryId = `${cleanId}#${inputPass}`;
+                
+                // 比對一下 (雖然前端比對不安全，但在這裡我們是直接發送請求給 server)
+                // 更好的做法是直接 join，如果錯誤就進不去 (會變成創建了一個新房)
+                // 為了簡單，我們直接用這個 tryId 去 join
+                
+                // 為了更好的體驗，我們檢查一下是否匹配 (因為列表裡有真實ID)
+                if (tryId !== roomId) {
+                    alert("密碼錯誤！");
+                    return;
+                }
+                
+                socket.emit('joinGame', { name, roomId: tryId });
+            } else {
+                // 普通房間
+                selectRoom(roomId);
+            }
         }
 
         function leaveGameAction() { if(socket) socket.emit('leaveGame'); }
@@ -462,10 +511,14 @@
                 document.getElementById('wait-msg').style.display = 'block';
                 document.getElementById('start-btn').style.display = 'none'; 
                 document.getElementById('leave-btn').style.display = 'inline-block';
-                document.getElementById('current-room-display').innerText = roomId;
+                
+                // === 顯示處理：隱藏密碼部分 ===
+                const displayRoomId = roomId.includes('#') ? roomId.split('#')[0] : roomId;
+                document.getElementById('current-room-display').innerText = displayRoomId;
+                
                 document.getElementById('chat-wrapper').style.display = 'flex';
                 
-                // === 關鍵修正：進入房間後，設置 isInRoom 為 true ===
+                // 已入場
                 isInRoom = true;
                 document.getElementById('queue-overlay').style.display = 'none';
             });
@@ -480,15 +533,13 @@
                 document.getElementById('chat-messages').innerHTML = '';
                 selectedCards.clear(); updatePlayButton(); unlockInterface();
                 
-                // === 關鍵修正：離開房間回到大廳，設置 isInRoom 為 false ===
-                // 這會觸發 roomListUpdate 重新檢查人數，如果滿員則顯示排隊
+                // 已離場
                 isInRoom = false;
             });
             socket.on('receiveMessage', (data) => {
                 appendMessage(data.name, data.text, data.name === document.getElementById('username').value);
             });
             
-            // === 排隊邏輯核心 (V3) ===
             socket.on('roomListUpdate', (list) => {
                 const container = document.getElementById('lobby-list');
                 container.innerHTML = '';
@@ -501,11 +552,9 @@
                 document.getElementById('server-count').innerText = totalPlayers;
                 const queueOverlay = document.getElementById('queue-overlay');
 
-                // === 邏輯：如果你在房間內 (isInRoom)，不管人數多少，都不顯示排隊 ===
                 if (isInRoom) {
                     queueOverlay.style.display = 'none';
                 } else {
-                    // === 如果你不在房間內 (在大廳)，且人數已滿 -> 排隊 ===
                     if (totalPlayers >= MAX_SERVER_CAPACITY) {
                         queueOverlay.style.display = 'flex';
                     } else {
@@ -517,15 +566,32 @@
                     container.innerHTML = '<div style="color:#777; font-size:14px; text-align:center">暫無房間，請自行創建</div>';
                     return;
                 }
+                
+                // === 大廳列表渲染 (含密碼房邏輯) ===
                 list.forEach(room => {
                     const isFull = room.count >= 10;
                     const isPlaying = room.status === 'Playing';
+                    
+                    // 檢查是否是加密房間 (ID 包含 #)
+                    const isPrivate = room.id.includes('#');
+                    const displayId = isPrivate ? room.id.split('#')[0] : room.id;
+                    const lockIcon = isPrivate ? '🔒' : '🏠';
+                    const lockedClass = isPrivate ? 'locked' : '';
+                    
                     const div = document.createElement('div');
-                    div.className = `room-item ${isFull ? 'full' : ''}`;
-                    if (!isFull && !isPlaying) div.onclick = () => selectRoom(room.id);
+                    div.className = `room-item ${isFull ? 'full' : ''} ${lockedClass}`;
+                    
+                    if (!isFull && !isPlaying) {
+                        if (isPrivate) {
+                            div.onclick = () => clickRoomItem(room.id); // 觸發密碼輸入
+                        } else {
+                            div.onclick = () => selectRoom(room.id);
+                        }
+                    }
+                    
                     const statusClass = isPlaying ? 'status-play' : 'status-wait';
                     const statusText = isPlaying ? '遊戲中' : '等待中';
-                    div.innerHTML = `<div>🏠 ${room.id} <span class="room-status ${statusClass}">${statusText}</span></div><div style="font-size:12px">👤 ${room.count}/10</div>`;
+                    div.innerHTML = `<div>${lockIcon} ${displayId} <span class="room-status ${statusClass}">${statusText}</span></div><div style="font-size:12px">👤 ${room.count}/10</div>`;
                     container.appendChild(div);
                 });
             });
@@ -548,7 +614,6 @@
                 unlockInterface();
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('game-screen').style.display = 'flex';
-                // 遊戲中強制隱藏排隊
                 document.getElementById('queue-overlay').style.display = 'none';
                 
                 currentActiveColor = state.topCard.tempColor || (state.topCard.color !== 'black' ? state.topCard.color : null);
