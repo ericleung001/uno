@@ -3,23 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>UNO Final Rule - Wild Free</title>
+    <title>UNO Online Final Fix</title>
     <style>
         body { font-family: 'Arial', sans-serif; background: #1e272e; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
+        /* 顏色選擇彈窗 */
         #color-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 300; justify-content: center; align-items: center; flex-direction: column; }
         #color-options { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         .color-btn { width: 120px; height: 120px; border-radius: 20px; border: 5px solid rgba(255,255,255,0.8); cursor: pointer; transition: transform 0.1s; }
         .color-btn:active { transform: scale(0.9); }
-        /* 禁用狀態：變灰且不能點擊 */
         .color-btn.disabled { opacity: 0.1; pointer-events: none; filter: grayscale(100%); cursor: not-allowed; }
-        
         .btn-red { background: #ff5555; } .btn-blue { background: #5555ff; } .btn-green { background: #55aa55; } .btn-yellow { background: #ffaa00; }
 
+        /* 遊戲結束彈窗 */
         #game-over-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 1000; justify-content: center; align-items: center; flex-direction: column; text-align: center; }
         #winner-text { font-size: 40px; color: #f1c40f; margin-bottom: 20px; font-weight: bold; }
         #back-lobby-btn { padding: 15px 40px; font-size: 20px; background: #2ecc71; color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; }
 
+        /* 通知與聊天室 */
         #notification-bar { position: fixed; top: 10%; left: 50%; transform: translateX(-50%); background: rgba(255, 165, 2, 0.95); color: black; padding: 12px 25px; border-radius: 30px; font-weight: bold; font-size: 18px; z-index: 200; display: none; box-shadow: 0 5px 15px rgba(0,0,0,0.5); white-space: nowrap; }
 
         #chat-wrapper { position: fixed; bottom: 20px; right: 20px; z-index: 800; display: flex; flex-direction: column; align-items: flex-end; }
@@ -37,6 +38,7 @@
         #chat-input { flex: 1; padding: 8px; border-radius: 20px; border: none; outline: none; }
         #chat-send { padding: 8px 15px; background: #2ecc71; border: none; border-radius: 20px; color: white; cursor: pointer; font-weight: bold; }
 
+        /* 登入畫面 */
         #login-screen { position: absolute; top:0; left:0; width:100%; height:100%; background: #2f3640; z-index:99; display:flex; flex-direction:column; align-items:center; justify-content:center; }
         #join-form { display: flex; flex-direction: column; align-items: center; }
         input { padding:12px; font-size:18px; margin:8px; text-align:center; border-radius: 8px; border:none; width: 220px; outline: none; }
@@ -50,6 +52,7 @@
         .status-wait { background: #2ecc71; color: white; }
         .status-play { background: #e74c3c; color: white; }
 
+        /* 遊戲畫面 */
         #game-screen { display: none; flex-direction: column; height: 100%; }
         #opponents { flex:1; display:flex; justify-content:center; align-items:center; gap:10px; padding:10px; background:#2f3640; flex-wrap: wrap; overflow-y: auto; }
         .opp { background:#353b48; padding:8px 12px; border-radius:10px; min-width:80px; text-align:center; position:relative; }
@@ -75,7 +78,29 @@
 
         #status-bar { text-align: center; font-size: 20px; margin-bottom: 10px; min-height: 30px; font-weight: bold; }
         .current-color-hint { position: absolute; bottom: -50px; background: rgba(0,0,0,0.8); padding: 8px 20px; border-radius: 20px; font-size: 16px; border: 1px solid white; }
-        #room-info { position: absolute; top: 15px; right: 15px; font-size: 16px; color: #7f8fa6; font-weight: bold; }
+        
+        #room-info { 
+            position: absolute; 
+            top: 15px; 
+            right: 15px; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: flex-end;
+            gap: 5px;
+        }
+        #room-text { font-size: 16px; color: #7f8fa6; font-weight: bold; }
+        #exit-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        #exit-btn:hover { background: #c0392b; }
     </style>
 </head>
 <body>
@@ -133,7 +158,11 @@
     </div>
 
     <div id="game-screen">
-        <div id="room-info">Room: <span id="current-room-display"></span></div>
+        <div id="room-info">
+            <div id="room-text">Room: <span id="current-room-display"></span></div>
+            <button id="exit-btn" onclick="backToLobby()">退出房間</button>
+        </div>
+
         <div id="opponents"></div>
         <div id="center">
             <div id="direction-indicator">順時針 ↻</div>
@@ -280,7 +309,7 @@
         }
 
         // ============================================
-        // === 最終修正版邏輯：Wild 無限制，連擊才過濾 ===
+        // === 修正版邏輯：同色連擊直出 + Wild 強制選 ===
         // ============================================
         function confirmPlay() {
             if (selectedCards.size === 0) return;
@@ -298,28 +327,24 @@
             }
 
             const hasBlack = cards.some(c => c.color === 'black');
-            
             // 找出這次出牌包含的所有「有色」顏色 (排除 Wild 黑色)
             const distinctPlayColors = [...new Set(cards.filter(c => c.color !== 'black').map(c => c.color))];
             
             // 2. 判斷是否需要彈出顏色選擇視窗
             let needsColorSelection = false;
 
-            // 條件 A: 有黑牌 (Wild) -> 必須選色
             if (hasBlack) {
-                needsColorSelection = true;
+                needsColorSelection = true; // 有黑牌(Wild)一定彈窗
+            } else if (cardIds.length > 1) {
+                // 連擊情況：
+                // 如果是「雜色連擊」(紅+藍)，必須選色 (needsColorSelection = true)
+                // 如果是「純色連擊」(紅+紅)，因為沒有顏色歧義，直接出牌 (needsColorSelection = false)
+                if (distinctPlayColors.length > 1) {
+                    needsColorSelection = true;
+                } else {
+                    needsColorSelection = false; // 純色連擊，直出
+                }
             }
-            // 條件 B: 多張牌連擊 (即使顏色單一，為了執行過濾邏輯，也視為需要選色)
-            else if (cardIds.length > 1) {
-                needsColorSelection = true;
-            }
-
-            // 特例優化：如果是純色連擊 (例如兩張紅)，且該顏色 = 當前桌面顏色
-            // 根據您的需求「紅+藍只剩藍」，如果是紅+紅(上家紅)，則只剩空集合? 
-            // 邏輯上紅+紅(上家紅)應該是不合法的(因為回馬槍)。
-            // 所以這裡我們保持 needsColorSelection = true，讓 filter 去處理，最後如果 allowedColors 為空，就代表這手牌不能出。
-            // 不過前端只負責顯示，如果 filter 完剩下 0 個選項，用戶就卡住了，這剛好符合規則(不能這樣出)。
-            // 但為了體驗，如果剛好是同色直出且不違反規則，可以直出。但為了嚴謹，我們先全部走彈窗邏輯。
 
             if (needsColorSelection) {
                 pendingPlayData = cardIds;
@@ -328,25 +353,20 @@
                 
                 // 步驟 A: 決定基礎候選顏色
                 if (hasBlack) {
-                    // 如果有 Wild，基礎候選是所有顏色
                     allowedColors = ['red', 'blue', 'green', 'yellow'];
                 } else {
-                    // 如果沒有 Wild，基礎候選只能是「手上打出的牌的顏色」
                     allowedColors = [...distinctPlayColors];
                 }
 
-                // 步驟 B: 執行「不可回馬槍」過濾
-                // === 關鍵修正：只有在「沒有 Wild 卡」的情況下才過濾 ===
-                // 如果有 Wild (hasBlack 為真)，則不過濾 (保留所有顏色)
+                // 步驟 B: 執行「不可回馬槍」過濾 (Wild 免死金牌)
                 if (!hasBlack && currentActiveColor && currentActiveColor !== 'black') {
                     allowedColors = allowedColors.filter(c => c !== currentActiveColor);
                 }
 
-                // 步驟 C: 顯示彈窗
                 showColorModal(allowedColors);
 
             } else {
-                // 不需要選色，直接出牌 (例如單張普通牌)
+                // 不需要選色，直接出牌
                 sendPlay(cardIds, null);
             }
         }
@@ -447,6 +467,7 @@
                     container.appendChild(div);
                 });
             });
+            
             socket.on('updatePlayerList', (players) => {
                 const msgEl = document.getElementById('wait-msg');
                 if(msgEl) msgEl.innerText = `房間人數: ${players.map(p=>p.name).join(', ')} (${players.length}/10)`;
@@ -454,6 +475,7 @@
                 if(players.length >= 2) btn.style.display = 'inline-block';
                 else btn.style.display = 'none';
             });
+
             socket.on('notification', (msg) => {
                 const bar = document.getElementById('notification-bar');
                 bar.innerText = msg;
@@ -465,7 +487,6 @@
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('game-screen').style.display = 'flex';
                 
-                // 更新當前桌面顏色
                 currentActiveColor = state.topCard.tempColor || (state.topCard.color !== 'black' ? state.topCard.color : null);
 
                 renderDiscard(state.topCard);
