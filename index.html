@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>UNO Online v3.8</title>
+    <title>UNO Online v3.9 (With UNO Button)</title>
    <style>
         body { font-family: 'Arial', sans-serif; background: #1e272e; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
@@ -110,28 +110,37 @@
         #status-bar { text-align: center; font-size: 20px; margin-bottom: 10px; min-height: 30px; font-weight: bold; }
         .current-color-hint { position: absolute; bottom: -50px; background: rgba(0,0,0,0.8); padding: 8px 20px; border-radius: 20px; font-size: 16px; border: 1px solid white; }
         
-        #room-info { 
-            position: absolute; 
-            top: 15px; 
-            right: 15px; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: flex-end;
-            gap: 5px;
-        }
+        #room-info { position: absolute; top: 15px; right: 15px; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
         #room-text { font-size: 16px; color: #7f8fa6; font-weight: bold; }
-        #exit-btn {
-            background: #e74c3c;
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 14px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-        }
+        #exit-btn { background: #e74c3c; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 14px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
         #exit-btn:hover { background: #c0392b; }
+
+        /* === 新增：UNO 按鈕樣式 === */
+        #uno-btn {
+            position: absolute;
+            bottom: 250px;
+            right: 20px;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: #ff5555;
+            border: 5px solid white;
+            color: white;
+            font-weight: 800;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            display: none; /* 預設隱藏 */
+            z-index: 600;
+            animation: pulse 1s infinite;
+            text-shadow: 2px 2px 0 #c0392b;
+        }
+        #uno-btn:active { transform: scale(0.9); }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
     </style>
 </head>
 <body>
@@ -142,9 +151,27 @@
     <div id="notification-bar"></div>
     <div id="chat-wrapper" style="display: none;"><div id="chat-box"><div id="chat-header"><span>💬 聊天室</span><span id="chat-close" onclick="toggleChat()">✕</span></div><div id="chat-messages"></div><div id="chat-input-area"><input type="text" id="chat-input" placeholder="輸入訊息..." onkeypress="handleChatKey(event)"><button id="chat-send" onclick="sendChat()">送出</button></div></div><button id="chat-toggle-btn" onclick="toggleChat()">💬<div id="chat-unread"></div></button></div>
     <div id="login-screen"><h1 style="font-size: 50px; margin-bottom: 20px;">UNO <span style="color:#ffaa00">Online</span></h1><div id="join-form"><input type="text" id="room-id" placeholder="輸入房號 或 點擊下方"><input type="password" id="room-pass" placeholder="密碼 (選填)" style="font-size: 16px;"><input type="text" id="username" placeholder="你的暱稱"><button id="join-btn" onclick="submitJoin()">加入 / 創建房間</button></div><p id="wait-msg" style="color:#aaa; margin-top:20px; display:none;"></p><div style="display:flex; justify-content:center;"><button id="start-btn" onclick="startGameAction()" style="display:none; background:#55aa55;">開始遊戲</button><button id="leave-btn" onclick="leaveGameAction()" style="display:none; background: #e74c3c; margin-left: 10px;">退出房間</button></div><h3 style="margin-top:30px; color:#aaa;">📋 大廳房間列表</h3><div id="lobby-list"><div style="color:#777; font-size:14px;">連接中...</div></div></div>
-    <div id="game-screen"><div id="room-info"><div id="room-text">Room: <span id="current-room-display"></span></div><button id="exit-btn" onclick="backToLobby()">退出房間</button></div><div id="opponents"></div><div id="center"><div id="direction-indicator">順時針 ↻</div><div id="draw-btn" class="card back" onclick="drawCardAction()"><div id="draw-text">PASS</div><small id="draw-sub">(抽牌)</small></div><div style="position:relative"><div id="discard" class="card"></div><div id="color-hint" class="current-color-hint" style="display:none"></div></div></div><div id="my-area"><button id="play-action-btn" onclick="confirmPlay()">確認出牌</button><div id="status-bar">準備開始</div><div id="my-hand"></div></div></div>
+    
+    <div id="game-screen">
+        <div id="room-info"><div id="room-text">Room: <span id="current-room-display"></span></div><button id="exit-btn" onclick="backToLobby()">退出房間</button></div>
+        <div id="opponents"></div>
+        <div id="center">
+            <div id="direction-indicator">順時針 ↻</div>
+            <div id="draw-btn" class="card back" onclick="drawCardAction()"><div id="draw-text">PASS</div><small id="draw-sub">(抽牌)</small></div>
+            <div style="position:relative">
+                <div id="discard" class="card"></div>
+                <div id="color-hint" class="current-color-hint" style="display:none"></div>
+            </div>
+        </div>
+        <div id="my-area">
+            <button id="uno-btn" onclick="sayUnoAction()">UNO!</button>
+            
+            <button id="play-action-btn" onclick="confirmPlay()">確認出牌</button>
+            <div id="status-bar">準備開始</div>
+            <div id="my-hand"></div>
+        </div>
+    </div>
 
-       
     <script src="https://ericleung001.github.io/uno/socket.io.js"></script>
     <script>
         let socket = null;
@@ -161,19 +188,32 @@
         const dingSound = new Audio("ding.mp3");
         dingSound.load();
 
-       
+        // 混淆網址
         const _0x1 = "aHR0cHM6Ly91bm8udHRjdHYtMTA1LmNj"; 
 
         function initGameSystem() {
-            const serverUrl = atob(_0x1); // 解碼
+            const serverUrl = atob(_0x1);
             
             try {
-              
+                // 恢復使用普通的連線方式 (不強制 websocket，讓 socket.io 自動選擇最佳方式)
                 socket = io(serverUrl);
                 setupSocketEvents();
             } catch (e) {
                 console.error(e);
-                document.getElementById('lobby-list').innerHTML = '<div style="color:red">無法連接伺服器 (請確認已貼上 Socket.io 代碼)</div>';
+                document.getElementById('lobby-list').innerHTML = '<div style="color:red">無法連接伺服器</div>';
+            }
+        }
+
+        // === 新增：按下 UNO 按鈕的動作 ===
+        function sayUnoAction() {
+            if (socket) {
+                // 告訴伺服器我喊了 UNO (如果後端有處理)
+                socket.emit('sayUno'); 
+                // 在聊天室顯示給所有人看
+                socket.emit('sendMessage', '🔥 UNO! 我剩下最後一張牌了！');
+                
+                // 按下後隱藏按鈕，避免重複按
+                document.getElementById('uno-btn').style.display = 'none';
             }
         }
 
@@ -189,7 +229,6 @@
             if(localStorage.getItem('last_name')) document.getElementById('username').value = localStorage.getItem('last_name');
             document.getElementById('server-max').innerText = MAX_SERVER_CAPACITY;
             
-            // 延遲一點點執行，確保 Socket.io 庫已加載
             setTimeout(initGameSystem, 100);
         }
 
@@ -221,6 +260,7 @@
                 document.getElementById('chat-messages').innerHTML = '';
                 selectedCards.clear(); updatePlayButton(); unlockInterface();
                 isInRoom = false;
+                document.getElementById('uno-btn').style.display = 'none'; // 重置 UNO 按鈕
             });
             socket.on('receiveMessage', (data) => {
                 appendMessage(data.name, data.text, data.name === document.getElementById('username').value);
@@ -320,6 +360,15 @@
                 window.myHandData = hand;
                 const div = document.getElementById('my-hand');
                 div.innerHTML = '';
+                
+                // === 新增：檢查手牌數量，控制 UNO 按鈕顯示 ===
+                const unoBtn = document.getElementById('uno-btn');
+                if (hand.length === 1) {
+                    unoBtn.style.display = 'block';
+                } else {
+                    unoBtn.style.display = 'none';
+                }
+
                 hand.forEach(c => {
                     const el = createCardEl(c);
                     if (selectedCards.has(c.id)) el.classList.add('selected');
