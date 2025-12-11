@@ -2,59 +2,36 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>UNO Online v4.0</title>
-   <style>
-        body { font-family: 'Arial', sans-serif; background: #1e272e; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>UNO Online v4.5 (Clean Version)</title>
+    <style>
+        body { font-family: 'Arial', sans-serif; background: #1e272e; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; overscroll-behavior: none; touch-action: pan-x pan-y; -webkit-user-select: none; user-select: none; }
         
-        /* 顏色選擇彈窗 */
-        #color-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 300; justify-content: center; align-items: center; flex-direction: column; }
+        /* 基礎 UI */
+        #color-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 4000; justify-content: center; align-items: center; flex-direction: column; }
         #color-options { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         .color-btn { width: 120px; height: 120px; border-radius: 20px; border: 5px solid rgba(255,255,255,0.8); cursor: pointer; transition: transform 0.1s; }
         .color-btn:active { transform: scale(0.9); }
         .color-btn.disabled { opacity: 0.1; pointer-events: none; filter: grayscale(100%); cursor: not-allowed; }
         .btn-red { background: #ff5555; } .btn-blue { background: #5555ff; } .btn-green { background: #55aa55; } .btn-yellow { background: #ffaa00; }
 
-        /* 遊戲結束彈窗 */
-        #game-over-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 1000; justify-content: center; align-items: center; flex-direction: column; text-align: center; }
+        #game-over-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 5000; justify-content: center; align-items: center; flex-direction: column; text-align: center; }
         #winner-text { font-size: 40px; color: #f1c40f; margin-bottom: 20px; font-weight: bold; }
         #back-lobby-btn { padding: 15px 40px; font-size: 20px; background: #2ecc71; color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; }
 
-        /* 排隊等待畫面 */
-        #queue-overlay {
-            display: none; 
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(30, 39, 46, 0.98);
-            z-index: 9999; 
-            justify-content: center; align-items: center; flex-direction: column;
-            text-align: center;
-        }
-        #queue-content {
-            background: #2f3640;
-            padding: 40px;
-            border-radius: 20px;
-            border: 2px solid #fbc531;
-            box-shadow: 0 0 50px rgba(0,0,0,0.8);
-            animation: fadeIn 0.5s;
-        }
-        .spinner {
-            border: 8px solid #f3f3f3;
-            border-top: 8px solid #fbc531;
-            border-radius: 50%;
-            width: 60px; height: 60px;
-            animation: spin 2s linear infinite;
-            margin: 20px auto;
-        }
+        #queue-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(30, 39, 46, 0.98); z-index: 9999; justify-content: center; align-items: center; flex-direction: column; text-align: center; }
+        #queue-content { background: #2f3640; padding: 40px; border-radius: 20px; border: 2px solid #fbc531; box-shadow: 0 0 50px rgba(0,0,0,0.8); animation: fadeIn 0.5s; }
+        .spinner { border: 8px solid #f3f3f3; border-top: 8px solid #fbc531; border-radius: 50%; width: 60px; height: 60px; animation: spin 2s linear infinite; margin: 20px auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* 通知與聊天室 */
-        #notification-bar { position: fixed; top: 10%; left: 50%; transform: translateX(-50%); background: rgba(255, 165, 2, 0.95); color: black; padding: 12px 25px; border-radius: 30px; font-weight: bold; font-size: 18px; z-index: 200; display: none; box-shadow: 0 5px 15px rgba(0,0,0,0.5); white-space: nowrap; }
+        #notification-bar { position: fixed; top: 10%; left: 50%; transform: translateX(-50%); background: rgba(255, 165, 2, 0.95); color: black; padding: 12px 25px; border-radius: 30px; font-weight: bold; font-size: 18px; z-index: 6000; display: none; box-shadow: 0 5px 15px rgba(0,0,0,0.5); white-space: nowrap; }
 
-        #chat-wrapper { position: fixed; bottom: 20px; right: 20px; z-index: 800; display: flex; flex-direction: column; align-items: flex-end; }
+        /* 聊天室 (保持修復版) */
+        #chat-wrapper { position: fixed; bottom: 20px; right: 20px; z-index: 3000; display: flex; flex-direction: column; align-items: flex-end; }
         #chat-toggle-btn { width: 60px; height: 60px; border-radius: 50%; background: #3498db; color: white; border: none; box-shadow: 0 4px 10px rgba(0,0,0,0.5); cursor: pointer; font-size: 30px; display: flex; justify-content: center; align-items: center; position: relative; }
         #chat-unread { position: absolute; top: 0; right: 0; background: red; color: white; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; display: none; justify-content: center; align-items: center; }
-        #chat-box { width: 300px; height: 400px; background: rgba(30, 39, 46, 0.95); border-radius: 15px; border: 2px solid #576574; display: none; flex-direction: column; overflow: hidden; margin-bottom: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.5); }
+        #chat-box { width: 300px; height: 400px; background: rgba(30, 39, 46, 0.98); border-radius: 15px; border: 2px solid #576574; display: none; flex-direction: column; overflow: hidden; margin-bottom: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.5); }
         #chat-header { padding: 10px; background: #34495e; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
         #chat-close { cursor: pointer; font-size: 20px; }
         #chat-messages { flex: 1; padding: 10px; overflow-y: auto; font-size: 14px; display: flex; flex-direction: column; gap: 8px; }
@@ -66,7 +43,6 @@
         #chat-input { flex: 1; padding: 8px; border-radius: 20px; border: none; outline: none; }
         #chat-send { padding: 8px 15px; background: #2ecc71; border: none; border-radius: 20px; color: white; cursor: pointer; font-weight: bold; }
 
-        /* 登入畫面 */
         #login-screen { position: absolute; top:0; left:0; width:100%; height:100%; background: #2f3640; z-index:99; display:flex; flex-direction:column; align-items:center; justify-content:center; }
         #join-form { display: flex; flex-direction: column; align-items: center; }
         input { padding:12px; font-size:18px; margin:8px; text-align:center; border-radius: 8px; border:none; width: 220px; outline: none; }
@@ -83,10 +59,18 @@
         .status-play { background: #e74c3c; color: white; }
         .room-item.locked { border-left: 5px solid #f1c40f; }
 
-        /* 遊戲畫面 */
         #game-screen { display: none; flex-direction: column; height: 100%; }
         #opponents { flex:1; display:flex; justify-content:center; align-items:center; gap:10px; padding:10px; background:#2f3640; flex-wrap: wrap; overflow-y: auto; }
-        .opp { background:#353b48; padding:8px 12px; border-radius:10px; min-width:80px; text-align:center; position:relative; }
+        
+        .opp { 
+            background:#353b48; 
+            padding:8px 12px; 
+            border-radius:10px; 
+            min-width:80px; 
+            text-align:center; 
+            position:relative; 
+            /* 移除了 margin-top: 40px，因為不需要氣泡空間了 */
+        }
         .opp.active { border:3px solid #fbc531; box-shadow:0 0 15px #fbc531; transform: scale(1.05); background: #404b5c; }
 
         #center { flex:2; display:flex; justify-content:center; align-items:center; gap:40px; position:relative; flex-direction: row; }
@@ -107,7 +91,7 @@
         .back { background: repeating-linear-gradient(45deg, #1e272e, #1e272e 10px, #2f3640 10px, #2f3640 20px); color: white; border: 4px solid #7f8fa6; font-size: 20px; text-shadow: none; }
         .back.penalty { border-color: #e74c3c; box-shadow: 0 0 20px #e74c3c; color: #e74c3c; }
 
-        #status-bar { text-align: center; font-size: 20px; margin-bottom: 10px; min-height: 30px; font-weight: bold; }
+        #status-bar { text-align: center; font-size: 20px; margin-bottom: 5px; min-height: 30px; font-weight: bold; position: relative; }
         .current-color-hint { position: absolute; bottom: -50px; background: rgba(0,0,0,0.8); padding: 8px 20px; border-radius: 20px; font-size: 16px; border: 1px solid white; }
         
         #room-info { position: absolute; top: 15px; right: 15px; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
@@ -115,7 +99,6 @@
         #exit-btn { background: #e74c3c; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 14px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
         #exit-btn:hover { background: #c0392b; }
 
-        /* UNO 按鈕 */
         #uno-btn {
             position: absolute; bottom: 250px; right: 20px;
             width: 80px; height: 80px; border-radius: 50%;
@@ -127,6 +110,10 @@
         }
         #uno-btn:active { transform: scale(0.9); }
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+
+        /* 倒數計時 */
+        #timer-bar-container { width: 80%; height: 6px; background: #444; border-radius: 3px; margin: 0 auto 10px auto; overflow: hidden; display: none; }
+        #timer-bar { height: 100%; width: 100%; background: #2ecc71; transition: width 1s linear, background 0.3s; }
     </style>
 </head>
 <body>
@@ -135,7 +122,16 @@
     <div id="color-modal"><h2 style="margin-bottom: 30px; font-size: 28px;">請選擇主要顏色</h2><div id="color-options"><div id="modal-btn-red" class="color-btn btn-red" onclick="selectColor('red')"></div><div id="modal-btn-blue" class="color-btn btn-blue" onclick="selectColor('blue')"></div><div id="modal-btn-green" class="color-btn btn-green" onclick="selectColor('green')"></div><div id="modal-btn-yellow" class="color-btn btn-yellow" onclick="selectColor('yellow')"></div></div><button onclick="closeColorModal()" style="margin-top: 30px; background: #7f8fa6; padding:10px 20px;">取消</button></div>
     <div id="game-over-modal"><div id="winner-text"></div><button id="back-lobby-btn" onclick="backToLobby()">返回大廳</button></div>
     <div id="notification-bar"></div>
-    <div id="chat-wrapper" style="display: none;"><div id="chat-box"><div id="chat-header"><span>💬 聊天室</span><span id="chat-close" onclick="toggleChat()">✕</span></div><div id="chat-messages"></div><div id="chat-input-area"><input type="text" id="chat-input" placeholder="輸入訊息..." onkeypress="handleChatKey(event)"><button id="chat-send" onclick="sendChat()">送出</button></div></div><button id="chat-toggle-btn" onclick="toggleChat()">💬<div id="chat-unread"></div></button></div>
+    
+    <div id="chat-wrapper" style="display: none;">
+        <div id="chat-box" style="display: none;">
+            <div id="chat-header"><span>💬 聊天室</span><span id="chat-close" onclick="toggleChat()">✕</span></div>
+            <div id="chat-messages"></div>
+            <div id="chat-input-area"><input type="text" id="chat-input" placeholder="輸入訊息..." onkeypress="handleChatKey(event)"><button id="chat-send" onclick="sendChat()">送出</button></div>
+        </div>
+        <button id="chat-toggle-btn" onclick="toggleChat()">💬<div id="chat-unread"></div></button>
+    </div>
+
     <div id="login-screen"><h1 style="font-size: 50px; margin-bottom: 20px;">UNO <span style="color:#ffaa00">Online</span></h1><div id="join-form"><input type="text" id="room-id" placeholder="輸入房號 或 點擊下方"><input type="password" id="room-pass" placeholder="密碼 (選填)" style="font-size: 16px;"><input type="text" id="username" placeholder="你的暱稱"><button id="join-btn" onclick="submitJoin()">加入 / 創建房間</button></div><p id="wait-msg" style="color:#aaa; margin-top:20px; display:none;"></p><div style="display:flex; justify-content:center;"><button id="start-btn" onclick="startGameAction()" style="display:none; background:#55aa55;">開始遊戲</button><button id="leave-btn" onclick="leaveGameAction()" style="display:none; background: #e74c3c; margin-left: 10px;">退出房間</button></div><h3 style="margin-top:30px; color:#aaa;">📋 大廳房間列表</h3><div id="lobby-list"><div style="color:#777; font-size:14px;">連接中...</div></div></div>
     
     <div id="game-screen">
@@ -153,6 +149,7 @@
             <button id="uno-btn" onclick="sayUnoAction()">UNO!</button>
             <button id="play-action-btn" onclick="confirmPlay()">確認出牌</button>
             <div id="status-bar">準備開始</div>
+            <div id="timer-bar-container"><div id="timer-bar"></div></div>
             <div id="my-hand"></div>
         </div>
     </div>
@@ -169,6 +166,8 @@
         let currentActiveColor = null;
         const MAX_SERVER_CAPACITY = 50; 
         let isInRoom = false;
+        let turnTimer = null;
+        const TURN_DURATION = 20;
 
         const dingSound = new Audio("ding.mp3");
         dingSound.load();
@@ -178,11 +177,28 @@
         function initGameSystem() {
             const serverUrl = atob(_0x1);
             try {
+                // 移除了 { transports: ['websocket'] }
                 socket = io(serverUrl);
                 setupSocketEvents();
             } catch (e) {
                 console.error(e);
                 document.getElementById('lobby-list').innerHTML = '<div style="color:red">無法連接伺服器</div>';
+            }
+        }
+
+        function toggleChat() {
+            const box = document.getElementById('chat-box');
+            const btn = document.getElementById('chat-toggle-btn');
+            
+            if (box.style.display === 'none' || box.style.display === '') {
+                box.style.display = 'flex';
+                btn.style.display = 'none';
+                unreadCount = 0;
+                updateUnreadBadge();
+                scrollToBottom();
+            } else {
+                box.style.display = 'none';
+                btn.style.display = 'flex';
             }
         }
 
@@ -192,6 +208,34 @@
                 socket.emit('sendMessage', '🔥 UNO! 我剩下最後一張牌了！');
                 document.getElementById('uno-btn').style.display = 'none';
             }
+        }
+
+        function startTimer() {
+            stopTimer(); 
+            let timeLeft = TURN_DURATION;
+            const container = document.getElementById('timer-bar-container');
+            const bar = document.getElementById('timer-bar');
+            const statusText = document.getElementById('status-bar');
+            
+            container.style.display = 'block';
+            bar.style.width = '100%';
+            bar.style.backgroundColor = '#2ecc71'; 
+            statusText.innerText = `👉 輪到你了！(${timeLeft}s)`;
+
+            turnTimer = setInterval(() => {
+                timeLeft--;
+                statusText.innerText = `👉 輪到你了！(${timeLeft}s)`;
+                const percent = (timeLeft / TURN_DURATION) * 100;
+                bar.style.width = `${percent}%`;
+                if (timeLeft <= 5) { bar.style.backgroundColor = '#e74c3c'; statusText.style.color = '#e74c3c'; }
+                if (timeLeft <= 0) { stopTimer(); drawCardAction(); }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            if (turnTimer) { clearInterval(turnTimer); turnTimer = null; }
+            document.getElementById('timer-bar-container').style.display = 'none';
+            document.getElementById('status-bar').style.color = '#aaa'; 
         }
 
         function unlockAudio() {
@@ -208,7 +252,6 @@
             setTimeout(initGameSystem, 100);
         }
 
-        // === 安全防護函數：轉義 HTML 特殊字符 ===
         function escapeHtml(text) {
             const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
             return text.replace(/[&<>"']/g, function(m) { return map[m]; });
@@ -218,13 +261,15 @@
             if (!socket) return;
 
             socket.on('connect', () => { myId = socket.id; });
+            
+            // 移除了 playerShoutUno 的監聽器
+
             socket.on('joinSuccess', (roomId) => {
                 document.getElementById('join-form').style.display = 'none';
                 document.getElementById('wait-msg').style.display = 'block';
                 document.getElementById('start-btn').style.display = 'none'; 
                 document.getElementById('leave-btn').style.display = 'inline-block';
                 
-                // === 安全防護：房號轉義 ===
                 const cleanRoomId = escapeHtml(roomId);
                 const displayRoomId = cleanRoomId.includes('#') ? cleanRoomId.split('#')[0] : cleanRoomId;
                 document.getElementById('current-room-display').innerText = displayRoomId;
@@ -245,69 +290,37 @@
                 selectedCards.clear(); updatePlayButton(); unlockInterface();
                 isInRoom = false;
                 document.getElementById('uno-btn').style.display = 'none';
+                stopTimer();
             });
             socket.on('receiveMessage', (data) => {
-                // escapeHtml 已在 appendMessage 內部被使用 (但可以再次檢查)
                 appendMessage(data.name, data.text, data.name === document.getElementById('username').value);
             });
-            
             socket.on('roomListUpdate', (list) => {
                 const container = document.getElementById('lobby-list');
                 container.innerHTML = '';
-                
                 let totalPlayers = 0;
-                if (list && list.length > 0) {
-                    list.forEach(room => totalPlayers += room.count);
-                }
-                
+                if (list && list.length > 0) list.forEach(room => totalPlayers += room.count);
                 document.getElementById('server-count').innerText = totalPlayers;
                 const queueOverlay = document.getElementById('queue-overlay');
-
-                if (isInRoom) {
-                    queueOverlay.style.display = 'none';
-                } else {
-                    if (totalPlayers >= MAX_SERVER_CAPACITY) {
-                        queueOverlay.style.display = 'flex';
-                    } else {
-                        queueOverlay.style.display = 'none';
-                    }
-                }
-
-                if (!list || list.length === 0) {
-                    container.innerHTML = '<div style="color:#777; font-size:14px; text-align:center">暫無房間，請自行創建</div>';
-                    return;
-                }
-                
+                if (isInRoom) { queueOverlay.style.display = 'none'; } else { if (totalPlayers >= MAX_SERVER_CAPACITY) { queueOverlay.style.display = 'flex'; } else { queueOverlay.style.display = 'none'; } }
+                if (!list || list.length === 0) { container.innerHTML = '<div style="color:#777; font-size:14px; text-align:center">暫無房間，請自行創建</div>'; return; }
                 list.forEach(room => {
                     const isFull = room.count >= 10;
                     const isPlaying = room.status === 'Playing';
                     const isPrivate = room.id.includes('#');
-                    
-                    // === 安全防護：列表房號轉義 ===
                     const safeId = escapeHtml(room.id);
                     const displayId = isPrivate ? safeId.split('#')[0] : safeId;
-                    
                     const lockIcon = isPrivate ? '🔒' : '🏠';
                     const lockedClass = isPrivate ? 'locked' : '';
-                    
                     const div = document.createElement('div');
                     div.className = `room-item ${isFull ? 'full' : ''} ${lockedClass}`;
-                    
-                    if (!isFull && !isPlaying) {
-                        if (isPrivate) {
-                            div.onclick = () => clickRoomItem(room.id);
-                        } else {
-                            div.onclick = () => selectRoom(room.id);
-                        }
-                    }
-                    
+                    if (!isFull && !isPlaying) { if (isPrivate) { div.onclick = () => clickRoomItem(room.id); } else { div.onclick = () => selectRoom(room.id); } }
                     const statusClass = isPlaying ? 'status-play' : 'status-wait';
                     const statusText = isPlaying ? '遊戲中' : '等待中';
                     div.innerHTML = `<div>${lockIcon} ${displayId} <span class="room-status ${statusClass}">${statusText}</span></div><div style="font-size:12px">👤 ${room.count}/10</div>`;
                     container.appendChild(div);
                 });
             });
-            
             socket.on('updatePlayerList', (players) => {
                 const msgEl = document.getElementById('wait-msg');
                 if(msgEl) msgEl.innerText = `房間人數: ${players.map(p=>p.name).join(', ')} (${players.length}/10)`;
@@ -315,7 +328,6 @@
                 if(players.length >= 2) btn.style.display = 'inline-block';
                 else btn.style.display = 'none';
             });
-
             socket.on('notification', (msg) => {
                 const bar = document.getElementById('notification-bar');
                 bar.innerText = msg;
@@ -327,37 +339,24 @@
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('game-screen').style.display = 'flex';
                 document.getElementById('queue-overlay').style.display = 'none';
-                
                 currentActiveColor = state.topCard.tempColor || (state.topCard.color !== 'black' ? state.topCard.color : null);
-
                 renderDiscard(state.topCard);
                 renderOpponents(state.players, state.currentPlayer);
                 renderDrawButton(state.drawStack);
-
                 const isMyTurn = state.currentPlayer === myId;
                 const statusEl = document.getElementById('status-bar');
                 statusEl.innerText = isMyTurn ? "👉 輪到你了！" : "等待對手...";
                 statusEl.style.color = isMyTurn ? "#f1c40f" : "#aaa";
                 document.getElementById('direction-indicator').innerText = state.direction === 1 ? "順時針 ↻" : "逆時針 ↺";
-
-                if (isMyTurn && lastActivePlayer !== myId) {
-                    playTurnSound();
-                }
+                if (isMyTurn) { if (lastActivePlayer !== myId) playTurnSound(); startTimer(); } else { stopTimer(); }
                 lastActivePlayer = state.currentPlayer;
             });
             socket.on('yourHand', (hand) => {
                 window.myHandData = hand;
                 const div = document.getElementById('my-hand');
                 div.innerHTML = '';
-                
-                // UNO 按鈕顯示邏輯
                 const unoBtn = document.getElementById('uno-btn');
-                if (hand.length === 1) {
-                    unoBtn.style.display = 'block';
-                } else {
-                    unoBtn.style.display = 'none';
-                }
-
+                if (hand.length === 1) { unoBtn.style.display = 'block'; } else { unoBtn.style.display = 'none'; }
                 hand.forEach(c => {
                     const el = createCardEl(c);
                     if (selectedCards.has(c.id)) el.classList.add('selected');
@@ -369,316 +368,49 @@
             socket.on('gameOver', (msg) => { 
                 document.getElementById('winner-text').innerText = msg;
                 document.getElementById('game-over-modal').style.display = 'flex';
+                stopTimer();
             });
             socket.on('errorMsg', (msg) => { alert(msg); unlockInterface(); });
+            
+            // Queue events
+            socket.on('queueStatus', (data) => {
+                document.getElementById('queue-overlay').style.display = 'flex';
+            });
+            socket.on('queueReady', () => {
+                document.getElementById('queue-overlay').style.display = 'none';
+                alert("輪到你了！");
+            });
+            socket.on('sessionCreated', (token) => localStorage.setItem('sessionToken', token));
         }
 
-        function playTurnSound() {
-            dingSound.currentTime = 0;
-            dingSound.play().catch(e => console.log("Sound error:", e));
-        }
-
-        function toggleChat() {
-            const box = document.getElementById('chat-box');
-            const btn = document.getElementById('chat-toggle-btn');
-            if (box.style.display === 'flex') {
-                box.style.display = 'none';
-                btn.style.display = 'flex';
-            } else {
-                box.style.display = 'flex';
-                btn.style.display = 'none';
-                unreadCount = 0;
-                updateUnreadBadge();
-                scrollToBottom();
-            }
-        }
+        function playTurnSound() { dingSound.currentTime = 0; dingSound.play().catch(e => {}); }
         function handleChatKey(e) { if (e.key === 'Enter') sendChat(); }
-        function sendChat() {
-            const input = document.getElementById('chat-input');
-            const text = input.value.trim();
-            if (text && socket) {
-                socket.emit('sendMessage', text);
-                input.value = '';
-            }
-        }
-        function appendMessage(name, text, isMine) {
-            const container = document.getElementById('chat-messages');
-            const div = document.createElement('div');
-            div.className = `msg ${isMine ? 'mine' : 'others'}`;
-            let nameHtml = isMine ? '' : `<span class="name">${name}</span>`;
-            // 這裡也使用了 escapeHtml 防止聊天室 XSS
-            div.innerHTML = `${nameHtml}${escapeHtml(text)}`;
-            container.appendChild(div);
-            scrollToBottom();
-            const box = document.getElementById('chat-box');
-            if (box.style.display !== 'flex') {
-                unreadCount++;
-                updateUnreadBadge();
-            }
-        }
-        function updateUnreadBadge() {
-            const badge = document.getElementById('chat-unread');
-            if (unreadCount > 0) {
-                badge.innerText = unreadCount;
-                badge.style.display = 'flex';
-            } else {
-                badge.style.display = 'none';
-            }
-        }
-        function scrollToBottom() {
-            const div = document.getElementById('chat-messages');
-            div.scrollTop = div.scrollHeight;
-        }
-
+        function sendChat() { const input = document.getElementById('chat-input'); const text = input.value.trim(); if (text && socket) { socket.emit('sendMessage', text); input.value = ''; } }
+        function appendMessage(name, text, isMine) { const container = document.getElementById('chat-messages'); const div = document.createElement('div'); div.className = `msg ${isMine ? 'mine' : 'others'}`; let nameHtml = isMine ? '' : `<span class="name">${name}</span>`; div.innerHTML = `${nameHtml}${escapeHtml(text)}`; container.appendChild(div); scrollToBottom(); const box = document.getElementById('chat-box'); if (box.style.display !== 'flex') { unreadCount++; updateUnreadBadge(); } }
+        function updateUnreadBadge() { const badge = document.getElementById('chat-unread'); if (unreadCount > 0) { badge.innerText = unreadCount; badge.style.display = 'flex'; } else { badge.style.display = 'none'; } }
+        function scrollToBottom() { const div = document.getElementById('chat-messages'); div.scrollTop = div.scrollHeight; }
         function backToLobby() { location.reload(); }
-
-        function submitJoin() {
-            unlockAudio();
-            if(!socket) return alert("尚未連接到伺服器");
-            const rawRoomId = document.getElementById('room-id').value.trim();
-            const password = document.getElementById('room-pass').value.trim();
-            const name = document.getElementById('username').value.trim();
-            
-            if(!rawRoomId || !name) return alert("請輸入房號和暱稱");
-            
-            // === 安全防護：禁止包含 HTML 標籤符號 ===
-            if (/[<>]/.test(rawRoomId) || /[<>]/.test(name)) {
-                return alert("房號或暱稱不能包含特殊符號 (< >)");
-            }
-
-            const finalRoomId = password ? `${rawRoomId}#${password}` : rawRoomId;
-            localStorage.setItem('last_room', rawRoomId);
-            localStorage.setItem('last_name', name);
-            socket.emit('joinGame', { name, roomId: finalRoomId });
-        }
-
-        function clickRoomItem(roomId) {
-            if (roomId.includes('#')) {
-                const cleanId = roomId.split('#')[0];
-                const inputPass = prompt(`房間 [${cleanId}] 需要密碼，請輸入：`);
-                if (inputPass === null) return; 
-                const name = document.getElementById('username').value.trim();
-                if(!name) return alert("請先輸入暱稱");
-                
-                // === 安全防護：檢查暱稱 ===
-                if (/[<>]/.test(name)) return alert("暱稱不能包含特殊符號");
-
-                const tryId = `${cleanId}#${inputPass}`;
-                if (tryId !== roomId) { alert("密碼錯誤！"); return; }
-                socket.emit('joinGame', { name, roomId: tryId });
-            } else {
-                selectRoom(roomId);
-            }
-        }
-
+        function submitJoin() { unlockAudio(); const rawRoomId = document.getElementById('room-id').value.trim(); const password = document.getElementById('room-pass').value.trim(); const name = document.getElementById('username').value.trim(); if(!rawRoomId || !name) return alert("請輸入房號和暱稱"); if (/[<>]/.test(rawRoomId) || /[<>]/.test(name)) return alert("不能包含特殊符號"); const finalRoomId = password ? `${rawRoomId}#${password}` : rawRoomId; localStorage.setItem('last_room', rawRoomId); localStorage.setItem('last_name', name); socket.emit('joinGame', { name, roomId: finalRoomId }); }
+        function clickRoomItem(roomId) { if (roomId.includes('#')) { const cleanId = roomId.split('#')[0]; const inputPass = prompt(`房間 [${cleanId}] 需要密碼，請輸入：`); if (inputPass === null) return; const name = document.getElementById('username').value.trim(); if(!name) return alert("請先輸入暱稱"); if (/[<>]/.test(name)) return alert("暱稱不能包含特殊符號"); const tryId = `${cleanId}#${inputPass}`; if (tryId !== roomId) { alert("密碼錯誤！"); return; } socket.emit('joinGame', { name, roomId: tryId }); } else { selectRoom(roomId); } }
         function leaveGameAction() { if(socket) socket.emit('leaveGame'); }
         function startGameAction() { if(socket) socket.emit('startGame'); }
         function drawCardAction() { if(socket && !isProcessing) { lockInterface(); socket.emit('drawCard'); } }
-
-        function toggleCardSelection(cardId, element) {
-            if (isProcessing) return;
-            if (selectedCards.has(cardId)) {
-                selectedCards.delete(cardId);
-                element.classList.remove('selected');
-            } else {
-                selectedCards.add(cardId);
-                element.classList.add('selected');
-            }
-            updatePlayButton();
-        }
-
-        function updatePlayButton() {
-            const btn = document.getElementById('play-action-btn');
-            if (selectedCards.size > 0) {
-                btn.style.display = 'block';
-                btn.innerText = `出牌 (${selectedCards.size})`;
-            } else {
-                btn.style.display = 'none';
-            }
-        }
-
-        function confirmPlay() {
-            if (selectedCards.size === 0) return;
-            const cardIds = Array.from(selectedCards);
-            const cards = cardIds.map(id => window.myHandData.find(c => c.id === id)).filter(c => c);
-
-            if (cards.length > 1) {
-                const firstVal = cards[0].value;
-                const allSame = cards.every(c => c.value === firstVal);
-                if (!allSame) {
-                    alert("連擊失敗：你選的牌數字或功能不相同！");
-                    return; 
-                }
-            }
-
-            const hasBlack = cards.some(c => c.color === 'black');
-            const distinctPlayColors = [...new Set(cards.filter(c => c.color !== 'black').map(c => c.color))];
-            
-            let needsColorSelection = false;
-            if (hasBlack) {
-                needsColorSelection = true; 
-            } else if (cardIds.length > 1) {
-                if (distinctPlayColors.length > 1) {
-                    needsColorSelection = true;
-                } else {
-                    needsColorSelection = false;
-                }
-            }
-
-            if (needsColorSelection) {
-                pendingPlayData = cardIds;
-                let allowedColors = [];
-                if (hasBlack) {
-                    allowedColors = ['red', 'blue', 'green', 'yellow'];
-                } else {
-                    allowedColors = [...distinctPlayColors];
-                }
-                if (!hasBlack && currentActiveColor && currentActiveColor !== 'black') {
-                    allowedColors = allowedColors.filter(c => c !== currentActiveColor);
-                }
-                showColorModal(allowedColors);
-            } else {
-                sendPlay(cardIds, null);
-            }
-        }
-        
-        function showColorModal(allowedColors) {
-            const all = ['red', 'blue', 'green', 'yellow'];
-            all.forEach(c => {
-                const btn = document.getElementById(`modal-btn-${c}`);
-                if (allowedColors.includes(c)) {
-                    btn.classList.remove('disabled');
-                } else {
-                    btn.classList.add('disabled');
-                }
-            });
-            document.getElementById('color-modal').style.display = 'flex';
-        }
-
-        function selectColor(color) {
-            if (pendingPlayData && socket) {
-                sendPlay(pendingPlayData, color);
-                closeColorModal();
-            }
-        }
-
-        function sendPlay(ids, color) {
-            if(!socket || isProcessing) return;
-            lockInterface();
-            socket.emit('playCard', { cardIds: ids, chooseColor: color });
-            selectedCards.clear();
-            updatePlayButton();
-        }
-
-        function closeColorModal() {
-            document.getElementById('color-modal').style.display = 'none';
-            pendingPlayData = null;
-        }
-
-        function lockInterface() {
-            isProcessing = true;
-            document.getElementById('my-hand').classList.add('processing');
-        }
-        function unlockInterface() {
-            isProcessing = false;
-            document.getElementById('my-hand').classList.remove('processing');
-        }
-
-        function selectRoom(id) {
-            document.getElementById('room-id').value = id;
-            const input = document.getElementById('room-id');
-            input.style.backgroundColor = '#444';
-            setTimeout(() => input.style.backgroundColor = '#fff', 200);
-        }
-
-        function createCardEl(c) {
-            const div = document.createElement('div');
-            div.className = `card ${c.color}`;
-            let display = c.value;
-            let sub = "";
-            if(c.type === 'draw2') display = '+2';
-            if(c.type === 'draw4') { display = '+4'; sub = "Wild"; }
-            if(c.type === 'skip') display = '⊘';
-            if(c.type === 'reverse') display = '⇄';
-            if(c.type === 'wild') { display = '🌈'; sub = "Wild"; } 
-            div.innerHTML = `<div>${display}</div>${sub ? `<small>${sub}</small>` : ''}`;
-            return div;
-        }
-
-        function renderDiscard(card) {
-            const pile = document.getElementById('discard');
-            pile.className = `card ${card.color}`;
-            let activeColor = card.tempColor || (card.color !== 'black' ? card.color : null);
-            if (activeColor) {
-                pile.style.borderColor = getHexColor(activeColor);
-                pile.style.boxShadow = `0 0 20px ${getHexColor(activeColor)}`;
-            } else {
-                pile.style.borderColor = 'white';
-                pile.style.boxShadow = '3px 3px 8px rgba(0,0,0,0.6)';
-            }
-            let display = card.value;
-            let sub = "";
-            if(card.type === 'draw2') display = '+2';
-            if(card.type === 'draw4') { display = '+4'; sub = "Wild"; }
-            if(card.type === 'skip') display = '⊘';
-            if(card.type === 'reverse') display = '⇄';
-            if(card.type === 'wild') { display = '🌈'; sub = "Wild"; }
-            pile.innerHTML = `<div>${display}</div>${sub ? `<small>${sub}</small>` : ''}`;
-            const hint = document.getElementById('color-hint');
-            if (activeColor) {
-                hint.style.display = 'block';
-                hint.innerText = `當前顏色: ${getColorName(activeColor)}`;
-                hint.style.color = getHexColor(activeColor);
-            } else {
-                hint.style.display = 'none';
-            }
-        }
-
-        function renderOpponents(players, currentId) {
-            const div = document.getElementById('opponents');
-            div.innerHTML = '';
-            players.forEach(p => {
-                if(p.id === myId) return;
-                const el = document.createElement('div');
-                el.className = `opp ${p.id === currentId ? 'active' : ''}`;
-                el.innerHTML = `<div>${p.name}</div><div style="font-size:18px">🂠 ${p.handCount}</div>`;
-                div.appendChild(el);
-            });
-        }
-
-        function getHexColor(c) {
-            if(c === 'red') return '#ff5555';
-            if(c === 'blue') return '#5555ff';
-            if(c === 'green') return '#55aa55';
-            if(c === 'yellow') return '#ffaa00';
-            return 'white';
-        }
-        function getColorName(c) {
-            if(c === 'red') return '紅色';
-            if(c === 'blue') return '藍色';
-            if(c === 'green') return '綠色';
-            if(c === 'yellow') return '黃色';
-            return c;
-        }
-
-        function renderDrawButton(stack) {
-            const btn = document.getElementById('draw-btn');
-            const txt = document.getElementById('draw-text');
-            const sub = document.getElementById('draw-sub');
-            if (stack > 0) {
-                btn.classList.add('penalty');
-                txt.innerText = `⚠️`;
-                sub.innerText = `領取 (+${stack})`;
-                sub.style.color = '#e74c3c';
-                sub.style.fontWeight = 'bold';
-            } else {
-                btn.classList.remove('penalty');
-                txt.innerText = `PASS`;
-                sub.innerText = `(抽牌)`;
-                sub.style.color = '#aaa';
-                sub.style.fontWeight = 'normal';
-            }
-        }
+        function toggleCardSelection(cardId, element) { if (isProcessing) return; if (selectedCards.has(cardId)) { selectedCards.delete(cardId); element.classList.remove('selected'); } else { selectedCards.add(cardId); element.classList.add('selected'); } updatePlayButton(); }
+        function updatePlayButton() { const btn = document.getElementById('play-action-btn'); if (selectedCards.size > 0) { btn.style.display = 'block'; btn.innerText = `出牌 (${selectedCards.size})`; } else { btn.style.display = 'none'; } }
+        function confirmPlay() { if (selectedCards.size === 0) return; const cardIds = Array.from(selectedCards); const cards = cardIds.map(id => window.myHandData.find(c => c.id === id)).filter(c => c); if (cards.length > 1) { const firstVal = cards[0].value; const allSame = cards.every(c => c.value === firstVal); if (!allSame) { alert("連擊失敗：數字或功能不相同！"); return; } } const hasBlack = cards.some(c => c.color === 'black'); const distinctPlayColors = [...new Set(cards.filter(c => c.color !== 'black').map(c => c.color))]; let needsColorSelection = false; if (hasBlack) { needsColorSelection = true; } else if (cardIds.length > 1) { if (distinctPlayColors.length > 1) { needsColorSelection = true; } else { needsColorSelection = false; } } if (needsColorSelection) { pendingPlayData = cardIds; let allowedColors = []; if (hasBlack) { allowedColors = ['red', 'blue', 'green', 'yellow']; } else { allowedColors = [...distinctPlayColors]; } if (!hasBlack && currentActiveColor && currentActiveColor !== 'black') { allowedColors = allowedColors.filter(c => c !== currentActiveColor); } showColorModal(allowedColors); } else { sendPlay(cardIds, null); } }
+        function showColorModal(allowedColors) { const all = ['red', 'blue', 'green', 'yellow']; all.forEach(c => { const btn = document.getElementById(`modal-btn-${c}`); if (allowedColors.includes(c)) { btn.classList.remove('disabled'); } else { btn.classList.add('disabled'); } }); document.getElementById('color-modal').style.display = 'flex'; }
+        function selectColor(color) { if (pendingPlayData && socket) { sendPlay(pendingPlayData, color); closeColorModal(); } }
+        function sendPlay(ids, color) { if(!socket || isProcessing) return; lockInterface(); socket.emit('playCard', { cardIds: ids, chooseColor: color }); selectedCards.clear(); updatePlayButton(); }
+        function closeColorModal() { document.getElementById('color-modal').style.display = 'none'; pendingPlayData = null; }
+        function lockInterface() { isProcessing = true; document.getElementById('my-hand').classList.add('processing'); stopTimer(); }
+        function unlockInterface() { isProcessing = false; document.getElementById('my-hand').classList.remove('processing'); }
+        function selectRoom(id) { document.getElementById('room-id').value = id; const input = document.getElementById('room-id'); input.style.backgroundColor = '#444'; setTimeout(() => input.style.backgroundColor = '#fff', 200); }
+        function createCardEl(c) { const div = document.createElement('div'); div.className = `card ${c.color}`; let display = c.value; let sub = ""; if(c.type === 'draw2') display = '+2'; if(c.type === 'draw4') { display = '+4'; sub = "Wild"; } if(c.type === 'skip') display = '⊘'; if(c.type === 'reverse') display = '⇄'; if(c.type === 'wild') { display = '🌈'; sub = "Wild"; } div.innerHTML = `<div>${display}</div>${sub ? `<small>${sub}</small>` : ''}`; return div; }
+        function renderDiscard(card) { const pile = document.getElementById('discard'); pile.className = `card ${card.color}`; let activeColor = card.tempColor || (card.color !== 'black' ? card.color : null); if (activeColor) { pile.style.borderColor = getHexColor(activeColor); pile.style.boxShadow = `0 0 20px ${getHexColor(activeColor)}`; } else { pile.style.borderColor = 'white'; pile.style.boxShadow = '3px 3px 8px rgba(0,0,0,0.6)'; } let display = card.value; let sub = ""; if(card.type === 'draw2') display = '+2'; if(card.type === 'draw4') { display = '+4'; sub = "Wild"; } if(card.type === 'skip') display = '⊘'; if(card.type === 'reverse') display = '⇄'; if(card.type === 'wild') { display = '🌈'; sub = "Wild"; } pile.innerHTML = `<div>${display}</div>${sub ? `<small>${sub}</small>` : ''}`; const hint = document.getElementById('color-hint'); if (activeColor) { hint.style.display = 'block'; hint.innerText = `當前顏色: ${getColorName(activeColor)}`; hint.style.color = getHexColor(activeColor); } else { hint.style.display = 'none'; } }
+        function renderOpponents(players, currentId) { const div = document.getElementById('opponents'); div.innerHTML = ''; players.forEach(p => { if(p.id === myId) return; const el = document.createElement('div'); el.className = `opp ${p.id === currentId ? 'active' : ''}`; el.id = `opp-${p.socketId}`; el.innerHTML = `<div>${p.name}</div><div style="font-size:18px">🂠 ${p.handCount}</div>`; div.appendChild(el); }); }
+        function getHexColor(c) { if(c === 'red') return '#ff5555'; if(c === 'blue') return '#5555ff'; if(c === 'green') return '#55aa55'; if(c === 'yellow') return '#ffaa00'; return 'white'; }
+        function getColorName(c) { if(c === 'red') return '紅色'; if(c === 'blue') return '藍色'; if(c === 'green') return '綠色'; if(c === 'yellow') return '黃色'; return c; }
+        function renderDrawButton(stack) { const btn = document.getElementById('draw-btn'); const txt = document.getElementById('draw-text'); const sub = document.getElementById('draw-sub'); if (stack > 0) { btn.classList.add('penalty'); txt.innerText = `⚠️`; sub.innerText = `領取 (+${stack})`; sub.style.color = '#e74c3c'; sub.style.fontWeight = 'bold'; } else { btn.classList.remove('penalty'); txt.innerText = `PASS`; sub.innerText = `(抽牌)`; sub.style.color = '#aaa'; sub.style.fontWeight = 'normal'; } }
     </script>
 </body>
 </html>
