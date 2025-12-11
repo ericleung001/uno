@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>UNO Ultimate v5</title>
+    <title>UNO Final Rule - Wild Free</title>
     <style>
         body { font-family: 'Arial', sans-serif; background: #1e272e; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
@@ -11,7 +11,9 @@
         #color-options { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         .color-btn { width: 120px; height: 120px; border-radius: 20px; border: 5px solid rgba(255,255,255,0.8); cursor: pointer; transition: transform 0.1s; }
         .color-btn:active { transform: scale(0.9); }
-        .color-btn.disabled { opacity: 0.1; pointer-events: none; filter: grayscale(100%); }
+        /* 禁用狀態：變灰且不能點擊 */
+        .color-btn.disabled { opacity: 0.1; pointer-events: none; filter: grayscale(100%); cursor: not-allowed; }
+        
         .btn-red { background: #ff5555; } .btn-blue { background: #5555ff; } .btn-green { background: #55aa55; } .btn-yellow { background: #ffaa00; }
 
         #game-over-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 1000; justify-content: center; align-items: center; flex-direction: column; text-align: center; }
@@ -52,8 +54,7 @@
         #opponents { flex:1; display:flex; justify-content:center; align-items:center; gap:10px; padding:10px; background:#2f3640; flex-wrap: wrap; overflow-y: auto; }
         .opp { background:#353b48; padding:8px 12px; border-radius:10px; min-width:80px; text-align:center; position:relative; }
         .opp.active { border:3px solid #fbc531; box-shadow:0 0 15px #fbc531; transform: scale(1.05); background: #404b5c; }
-        /* 移除變灰樣式，因為不再顯示離線文字 */
-        
+
         #center { flex:2; display:flex; justify-content:center; align-items:center; gap:40px; position:relative; flex-direction: row; }
         #direction-indicator { position:absolute; top:20px; font-size:20px; color:#7f8fa6; font-weight: bold; }
 
@@ -162,21 +163,16 @@
         let pendingPlayData = null;
         let unreadCount = 0;
         let lastActivePlayer = null;
+        let currentActiveColor = null; 
 
-        // === 1. 使用外部音效檔案 (確保你已將 ding.mp3 上傳到 public 資料夾) ===
         const dingSound = new Audio("ding.mp3");
-
-        // 預先載入，並設定忽略錯誤
         dingSound.load();
 
-        // 嘗試解鎖音效 (在使用者第一次點擊網頁時)
         function unlockAudio() {
             dingSound.play().then(() => {
                 dingSound.pause();
                 dingSound.currentTime = 0;
-            }).catch(() => {
-                // 如果瀏覽器還不允許，就忽略
-            });
+            }).catch(() => {});
         }
 
         window.onload = function() {
@@ -247,9 +243,7 @@
         function backToLobby() { location.reload(); }
 
         function submitJoin() {
-            // === 關鍵：在這裡解鎖音效 ===
             unlockAudio();
-
             if(!socket) return alert("尚未連接到伺服器");
             const roomId = document.getElementById('room-id').value.trim();
             const name = document.getElementById('username').value.trim();
@@ -285,11 +279,15 @@
             }
         }
 
+        // ============================================
+        // === 最終修正版邏輯：Wild 無限制，連擊才過濾 ===
+        // ============================================
         function confirmPlay() {
             if (selectedCards.size === 0) return;
             const cardIds = Array.from(selectedCards);
             const cards = cardIds.map(id => window.myHandData.find(c => c.id === id)).filter(c => c);
 
+            // 1. 檢查數字/功能是否一致
             if (cards.length > 1) {
                 const firstVal = cards[0].value;
                 const allSame = cards.every(c => c.value === firstVal);
@@ -299,43 +297,69 @@
                 }
             }
 
-            const hasBlack = hasBlackCard(cardIds);
-            const needsColor = cardIds.length > 1 || hasBlack;
+            const hasBlack = cards.some(c => c.color === 'black');
+            
+            // 找出這次出牌包含的所有「有色」顏色 (排除 Wild 黑色)
+            const distinctPlayColors = [...new Set(cards.filter(c => c.color !== 'black').map(c => c.color))];
+            
+            // 2. 判斷是否需要彈出顏色選擇視窗
+            let needsColorSelection = false;
 
-            if (needsColor) {
+            // 條件 A: 有黑牌 (Wild) -> 必須選色
+            if (hasBlack) {
+                needsColorSelection = true;
+            }
+            // 條件 B: 多張牌連擊 (即使顏色單一，為了執行過濾邏輯，也視為需要選色)
+            else if (cardIds.length > 1) {
+                needsColorSelection = true;
+            }
+
+            // 特例優化：如果是純色連擊 (例如兩張紅)，且該顏色 = 當前桌面顏色
+            // 根據您的需求「紅+藍只剩藍」，如果是紅+紅(上家紅)，則只剩空集合? 
+            // 邏輯上紅+紅(上家紅)應該是不合法的(因為回馬槍)。
+            // 所以這裡我們保持 needsColorSelection = true，讓 filter 去處理，最後如果 allowedColors 為空，就代表這手牌不能出。
+            // 不過前端只負責顯示，如果 filter 完剩下 0 個選項，用戶就卡住了，這剛好符合規則(不能這樣出)。
+            // 但為了體驗，如果剛好是同色直出且不違反規則，可以直出。但為了嚴謹，我們先全部走彈窗邏輯。
+
+            if (needsColorSelection) {
                 pendingPlayData = cardIds;
-                let allowedColors = ['red', 'blue', 'green', 'yellow'];
-                if (!hasBlack) allowedColors = getUniqueColors(cardIds);
+                
+                let allowedColors = [];
+                
+                // 步驟 A: 決定基礎候選顏色
+                if (hasBlack) {
+                    // 如果有 Wild，基礎候選是所有顏色
+                    allowedColors = ['red', 'blue', 'green', 'yellow'];
+                } else {
+                    // 如果沒有 Wild，基礎候選只能是「手上打出的牌的顏色」
+                    allowedColors = [...distinctPlayColors];
+                }
+
+                // 步驟 B: 執行「不可回馬槍」過濾
+                // === 關鍵修正：只有在「沒有 Wild 卡」的情況下才過濾 ===
+                // 如果有 Wild (hasBlack 為真)，則不過濾 (保留所有顏色)
+                if (!hasBlack && currentActiveColor && currentActiveColor !== 'black') {
+                    allowedColors = allowedColors.filter(c => c !== currentActiveColor);
+                }
+
+                // 步驟 C: 顯示彈窗
                 showColorModal(allowedColors);
+
             } else {
+                // 不需要選色，直接出牌 (例如單張普通牌)
                 sendPlay(cardIds, null);
             }
         }
-
-        function hasBlackCard(ids) {
-            if (!window.myHandData) return false;
-            return ids.some(id => {
-                const c = window.myHandData.find(x => x.id === id);
-                return c && c.color === 'black';
-            });
-        }
         
-        function getUniqueColors(ids) {
-            if (!window.myHandData) return [];
-            const colors = new Set();
-            ids.forEach(id => {
-                const c = window.myHandData.find(x => x.id === id);
-                if (c && c.color !== 'black') colors.add(c.color);
-            });
-            return Array.from(colors);
-        }
-
         function showColorModal(allowedColors) {
             const all = ['red', 'blue', 'green', 'yellow'];
             all.forEach(c => {
                 const btn = document.getElementById(`modal-btn-${c}`);
-                if (allowedColors.includes(c)) btn.classList.remove('disabled');
-                else btn.classList.add('disabled');
+                if (allowedColors.includes(c)) {
+                    btn.classList.remove('disabled');
+                } else {
+                    btn.classList.add('disabled');
+                }
             });
             document.getElementById('color-modal').style.display = 'flex';
         }
@@ -440,6 +464,10 @@
                 unlockInterface();
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('game-screen').style.display = 'flex';
+                
+                // 更新當前桌面顏色
+                currentActiveColor = state.topCard.tempColor || (state.topCard.color !== 'black' ? state.topCard.color : null);
+
                 renderDiscard(state.topCard);
                 renderOpponents(state.players, state.currentPlayer);
                 renderDrawButton(state.drawStack);
@@ -450,7 +478,6 @@
                 statusEl.style.color = isMyTurn ? "#f1c40f" : "#aaa";
                 document.getElementById('direction-indicator').innerText = state.direction === 1 ? "順時針 ↻" : "逆時針 ↺";
 
-                // === 播放聲音 ===
                 if (isMyTurn && lastActivePlayer !== myId) {
                     playTurnSound();
                 }
@@ -537,7 +564,6 @@
             }
         }
 
-        // === 這裡修改了：移除了 (離線) 文字 ===
         function renderOpponents(players, currentId) {
             const div = document.getElementById('opponents');
             div.innerHTML = '';
@@ -545,7 +571,6 @@
                 if(p.id === myId) return;
                 const el = document.createElement('div');
                 el.className = `opp ${p.id === currentId ? 'active' : ''}`;
-                // 移除了 ${p.isOnline?'':'(離線)'}
                 el.innerHTML = `<div>${p.name}</div><div style="font-size:18px">🂠 ${p.handCount}</div>`;
                 div.appendChild(el);
             });
