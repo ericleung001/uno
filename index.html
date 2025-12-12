@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>UNO Online (v4.91 Connection Fixed)</title>
+    <title>UNO Online (v5.0 Fixed)</title>
     <style>
         body { font-family: 'Arial', sans-serif; background: #1e272e; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; overscroll-behavior: none; touch-action: pan-x pan-y; -webkit-user-select: none; user-select: none; }
         
@@ -193,11 +193,11 @@
         <h1 style="font-size: 50px; margin-bottom: 20px;">UNO <span style="color:#ffaa00">Online</span></h1>
         
         <div id="news-box">
-            <h3>📢 更新消息 (v5.3)</h3>
+            <h3>📢 更新消息 (v4.7 Fixed)</h3>
             <ul>
-                <li>✨ 表情符號修復完成！</li>
-                <li>🛠️ 強制 20秒自動 Pass</li>
-                <li>🔒 連線方式還原 (v4.7)</li>
+                <li>✨ 表情符號：全玩家可見 (ID Fixed)</li>
+                <li>🛠️ 遊戲修復：第一張牌正常顯示</li>
+                <li>🔒 連線方式：v4.7 加密節點</li>
             </ul>
         </div>
 
@@ -256,7 +256,6 @@
         const _0x1 = "aHR0cHM6Ly91bm8udHRjdHYtMTA1LmNj"; 
 
         function initGameSystem() {
-            // === 恢復 v4.7 的連線方式 (加密 URL) ===
             const serverUrl = atob(_0x1);
             try {
                 socket = io(serverUrl);
@@ -267,20 +266,22 @@
             }
         }
 
+        // === 1. 發送表情 (Socket Emit) ===
         function sendEmoji(emoji) {
             if (socket) {
-                // 發送給伺服器，等待廣播回來
                 socket.emit('sendEmoji', emoji);
             }
         }
 
+        // === 2. 顯示表情 (接收 Server 廣播) ===
         function showEmoji(socketId, emoji) {
             let targetEl = null;
             
+            // 判斷是「自己」還是「對手」
             if (socketId === myId) {
                 targetEl = document.getElementById('my-area'); 
             } else {
-                // !!! 這裡之前是用 socketId，現在改為正確對應
+                // !!! 修正重點：使用 opp-{socketId} 尋找對應的 HTML 元素
                 targetEl = document.getElementById(`opp-${socketId}`); 
             }
 
@@ -391,19 +392,25 @@
 
             socket.on('connect', () => { myId = socket.id; });
             
-            // 監聽 Emoji 廣播
+            // === 3. 監聽 Emoji 廣播 (這是重點) ===
             socket.on('playerEmoji', (data) => {
+                // data.socketId 是誰發的，data.emoji 是表情
                 showEmoji(data.socketId, data.emoji);
             });
 
+            // === 4. 監聽遊戲通知 (顯示 Server 傳來的 v4.6 風格文字) ===
             socket.on('notification', (msg) => {
                 const notiBar = document.getElementById('notification-bar');
                 notiBar.innerText = msg;
                 notiBar.style.display = 'block';
                 notiBar.style.animation = 'none';
-                notiBar.offsetHeight;
+                notiBar.offsetHeight; /* trigger reflow */
                 notiBar.style.animation = 'fadeIn 0.3s';
-                setTimeout(() => { notiBar.style.display = 'none'; }, 3000);
+                
+                // 3秒後消失
+                setTimeout(() => {
+                    notiBar.style.display = 'none';
+                }, 3000);
             });
 
             socket.on('joinSuccess', (roomId) => {
@@ -479,7 +486,10 @@
                 document.getElementById('game-screen').style.display = 'flex';
                 document.getElementById('queue-overlay').style.display = 'none';
                 currentActiveColor = state.topCard.tempColor || (state.topCard.color !== 'black' ? state.topCard.color : null);
+                
+                // === 修復：確保渲染棄牌堆 ===
                 renderDiscard(state.topCard);
+                
                 renderOpponents(state.players, state.currentPlayer);
                 renderDrawButton(state.drawStack);
                 const isMyTurn = state.currentPlayer === myId;
@@ -571,16 +581,55 @@
         function selectRoom(id) { document.getElementById('room-id').value = id; const input = document.getElementById('room-id'); input.style.backgroundColor = '#444'; setTimeout(() => input.style.backgroundColor = '#fff', 200); }
         function createCardEl(c) { const div = document.createElement('div'); div.className = `card ${c.color}`; let display = c.value; let sub = ""; if(c.type === 'draw2') display = '+2'; if(c.type === 'draw4') { display = '+4'; sub = "Wild"; } if(c.type === 'skip') display = '⊘'; if(c.type === 'reverse') display = '⇄'; if(c.type === 'wild') { display = '🌈'; sub = "Wild"; } div.innerHTML = `<div>${display}</div>${sub ? `<small>${sub}</small>` : ''}`; return div; }
         
-        // === 關鍵修正：這裡改用 p.id，對應 Server 的資料結構 ===
+        // === 修復後：第一張牌正確顯示 ===
+        function renderDiscard(card) { 
+            const pile = document.getElementById('discard'); 
+            if (!card) {
+                pile.className = 'card back'; 
+                pile.innerHTML = '';
+                return;
+            }
+            pile.className = `card ${card.color}`; 
+            let activeColor = card.tempColor || (card.color !== 'black' ? card.color : null); 
+            if (activeColor) { 
+                pile.style.borderColor = getHexColor(activeColor); 
+                pile.style.boxShadow = `0 0 20px ${getHexColor(activeColor)}`; 
+            } else { 
+                pile.style.borderColor = 'white'; 
+                pile.style.boxShadow = '3px 3px 8px rgba(0,0,0,0.6)'; 
+            } 
+            
+            let display = card.value; 
+            // 修正：檢查 card.value 是否存在 (0 也是有效數值)
+            if (display === undefined || display === null) display = '';
+
+            let sub = ""; 
+            if(card.type === 'draw2') display = '+2'; 
+            if(card.type === 'draw4') { display = '+4'; sub = "Wild"; } 
+            if(card.type === 'skip') display = '⊘'; 
+            if(card.type === 'reverse') display = '⇄'; 
+            if(card.type === 'wild') { display = '🌈'; sub = "Wild"; } 
+            
+            pile.innerHTML = `<div>${display}</div>${sub ? `<small>${sub}</small>` : ''}`; 
+            const hint = document.getElementById('color-hint'); 
+            if (activeColor) { 
+                hint.style.display = 'block'; 
+                hint.innerText = `當前顏色: ${getColorName(activeColor)}`; 
+                hint.style.color = getHexColor(activeColor); 
+            } else { 
+                hint.style.display = 'none'; 
+            } 
+        }
+
+        // === 修復後：ID 綁定改用 p.id ===
         function renderOpponents(players, currentId) { 
             const div = document.getElementById('opponents'); 
             div.innerHTML = ''; 
             players.forEach(p => { 
-                if(socket.id === myId) return; 
+                if(p.id === myId) return; 
                 const el = document.createElement('div'); 
-                el.className = `opp ${socket.id === currentId ? 'active' : ''}`; 
-                // !!! 這裡原本是 p.socketId，改為 p.id 即可 !!!
-                el.id = `opp-${socket.id}`; 
+                el.className = `opp ${p.id === currentId ? 'active' : ''}`; 
+                el.id = `opp-${p.id}`; // 這裡改回用 p.id
                 el.innerHTML = `<div>${p.name}</div><div style="font-size:18px">🂠 ${p.handCount}</div>`; 
                 div.appendChild(el); 
             }); 
