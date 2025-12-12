@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>UNO Online v5.3 (Emoji Fixed)</title>
+    <title>UNO Online v5.4 (Emoji Fixed)</title>
     <style>
         body { font-family: 'Arial', sans-serif; background: #1e272e; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; overscroll-behavior: none; touch-action: pan-x pan-y; -webkit-user-select: none; user-select: none; }
         
@@ -193,9 +193,9 @@
         <h1 style="font-size: 50px; margin-bottom: 20px;">UNO <span style="color:#ffaa00">Online</span></h1>
         
         <div id="news-box">
-            <h3>📢 更新消息 (v5.3)</h3>
+            <h3>📢 更新消息 (v5.4)</h3>
             <ul>
-                <li>✨ 新增表情符號互動功能</li>
+                <li>✨ 修復：所有玩家都能看到表情！</li>
                 <li>🛠️ 強制 20秒自動 Pass</li>
                 <li>🔒 聊天室與排隊系統優化</li>
             </ul>
@@ -249,6 +249,9 @@
         let isInRoom = false;
         let turnTimer = null;
         const TURN_DURATION = 20;
+        
+        // 新增：儲存所有玩家資訊，用來在聊天室訊息中反查 ID
+        let allPlayers = [];
 
         const dingSound = new Audio("ding.mp3");
         dingSound.load();
@@ -266,21 +269,21 @@
             }
         }
 
-        // === 新增：發送表情邏輯 (本地立即顯示 + 廣播) ===
+        // === 修改：發送表情 (利用 Chat 通道繞過 Server 限制) ===
         function sendEmoji(emoji) {
             if (socket) {
-                // 1. 本地立即顯示 (優化體驗)
+                // 1. 本地顯示
                 showEmoji(myId, emoji);
-                // 2. 發送到伺服器
-                socket.emit('sendEmoji', emoji);
+                // 2. 透過聊天室發送 "隱藏代碼"，這樣所有人都會收到通知
+                // 因為 Server 沒寫 playerEmoji，但肯定有寫 sendMessage
+                socket.emit('sendMessage', '$$EMOJI$$' + emoji);
             }
         }
 
-        // === 新增：顯示表情動畫 ===
+        // === 顯示表情動畫 (不變) ===
         function showEmoji(socketId, emoji) {
             let targetEl = null;
             
-            // 判斷是自己還是對手
             if (socketId === myId) {
                 targetEl = document.getElementById('my-area');
             } else {
@@ -292,7 +295,6 @@
                 bubble.className = 'emoji-bubble';
                 bubble.innerText = emoji;
                 
-                // 調整氣泡起始位置
                 if (socketId === myId) {
                     bubble.style.top = '-100px'; 
                     bubble.style.left = '50%';
@@ -303,7 +305,6 @@
 
                 targetEl.appendChild(bubble);
 
-                // 2秒後移除
                 setTimeout(() => {
                     bubble.remove();
                 }, 2000);
@@ -396,9 +397,8 @@
 
             socket.on('connect', () => { myId = socket.id; });
             
-            // === 監聽對手表情 ===
+            // 原本的 playerEmoji 監聽保留，以防伺服器未來更新
             socket.on('playerEmoji', (data) => {
-                // 如果是自己發的，已經在 sendEmoji 顯示過了，這裡忽略
                 if (data.socketId !== myId) {
                     showEmoji(data.socketId, data.emoji);
                 }
@@ -416,7 +416,7 @@
                 document.getElementById('chat-wrapper').style.display = 'flex';
                 isInRoom = true;
                 document.getElementById('queue-overlay').style.display = 'none';
-                document.getElementById('emoji-bar').style.display = 'flex'; // 顯示表情
+                document.getElementById('emoji-bar').style.display = 'flex';
             });
             socket.on('leftGameSuccess', () => {
                 document.getElementById('join-form').style.display = 'flex';
@@ -431,12 +431,38 @@
                 selectedCards.clear(); updatePlayButton(); unlockInterface();
                 isInRoom = false;
                 document.getElementById('uno-btn').style.display = 'none';
-                document.getElementById('emoji-bar').style.display = 'none'; // 隱藏表情
+                document.getElementById('emoji-bar').style.display = 'none'; 
                 stopTimer();
             });
+
+            // === 修改：聊天訊息監聽 (攔截表情代碼) ===
             socket.on('receiveMessage', (data) => {
+                // 檢查是否為隱藏的表情代碼
+                if (data.text && data.text.startsWith('$$EMOJI$$')) {
+                    const emoji = data.text.replace('$$EMOJI$$', '');
+                    
+                    // 因為聊天訊息只給我們名字，我們需要反查 socketId
+                    // 1. 先查是否是自己
+                    if (data.name === document.getElementById('username').value) {
+                         // 自己已經在 sendEmoji 顯示過了，這裡可以忽略，或者做雙重確認
+                         // 為避免重複顯示，這裡可以 return，除非你想確認伺服器有廣播回來
+                         return; 
+                    }
+
+                    // 2. 查是否是對手
+                    const sender = allPlayers.find(p => p.name === data.name);
+                    if (sender) {
+                        showEmoji(sender.id, emoji);
+                    }
+                    
+                    // 攔截成功，不顯示在聊天室
+                    return; 
+                }
+
+                // 正常訊息
                 appendMessage(data.name, data.text, data.name === document.getElementById('username').value);
             });
+
             socket.on('roomListUpdate', (list) => {
                 const container = document.getElementById('lobby-list');
                 container.innerHTML = '';
@@ -464,6 +490,8 @@
                 });
             });
             socket.on('updatePlayerList', (players) => {
+                // 更新大廳玩家列表
+                allPlayers = players; 
                 const msgEl = document.getElementById('wait-msg');
                 if(msgEl) msgEl.innerText = `房間人數: ${players.map(p=>p.name).join(', ')} (${players.length}/10)`;
                 const btn = document.getElementById('start-btn');
@@ -475,6 +503,9 @@
             
             socket.on('gameStateUpdate', (state) => {
                 unlockInterface();
+                // === 重要：更新玩家清單，以便查 ID ===
+                allPlayers = state.players;
+
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('game-screen').style.display = 'flex';
                 document.getElementById('queue-overlay').style.display = 'none';
@@ -553,7 +584,6 @@
             } 
         }
         
-        // === 發送出牌訊息到聊天室 ===
         function sendPlay(ids, color) { 
             if(!socket || isProcessing) return; 
             
@@ -576,7 +606,6 @@
         function lockInterface() { 
             isProcessing = true; 
             document.getElementById('my-hand').classList.add('processing'); 
-            // 這裡移除了 stopTimer，確保倒數繼續 (強制20秒)
         }
         function unlockInterface() { isProcessing = false; document.getElementById('my-hand').classList.remove('processing'); }
         function selectRoom(id) { document.getElementById('room-id').value = id; const input = document.getElementById('room-id'); input.style.backgroundColor = '#444'; setTimeout(() => input.style.backgroundColor = '#fff', 200); }
