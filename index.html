@@ -324,7 +324,7 @@
 
         function sayUnoAction() {
             if (socket) {
-                //socket.emit('sayUno'); 
+                socket.emit('sayUno'); 
                 socket.emit('sendMessage', '🔥 UNO! 我剩下最後一張牌了！');
                 document.getElementById('uno-btn').style.display = 'none';
             }
