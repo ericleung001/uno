@@ -428,7 +428,7 @@
         function selectColor(color) { if (pendingPlayData && socket) { sendPlay(pendingPlayData, color); closeColorModal(); } }
         function sendPlay(ids, color) { if(!socket || isProcessing) return; lockInterface(); socket.emit('playCard', { cardIds: ids, chooseColor: color }); selectedCards.clear(); updatePlayButton(); }
         function closeColorModal() { document.getElementById('color-modal').style.display = 'none'; pendingPlayData = null; }
-        function lockInterface() { isProcessing = true; document.getElementById('my-hand').classList.add('processing'); stopTimer(); }
+        function lockInterface() { isProcessing = true; document.getElementById('my-hand').classList.add('processing'); }
         function unlockInterface() { isProcessing = false; document.getElementById('my-hand').classList.remove('processing'); }
         function selectRoom(id) { document.getElementById('room-id').value = id; const input = document.getElementById('room-id'); input.style.backgroundColor = '#444'; setTimeout(() => input.style.backgroundColor = '#fff', 200); }
         function createCardEl(c) { const div = document.createElement('div'); div.className = `card ${c.color}`; let display = c.value; let sub = ""; if(c.type === 'draw2') display = '+2'; if(c.type === 'draw4') { display = '+4'; sub = "Wild"; } if(c.type === 'skip') display = '⊘'; if(c.type === 'reverse') display = '⇄'; if(c.type === 'wild') { display = '🌈'; sub = "Wild"; } div.innerHTML = `<div>${display}</div>${sub ? `<small>${sub}</small>` : ''}`; return div; }
