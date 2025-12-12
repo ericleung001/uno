@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>UNO Online v5.4 (Emoji Fixed)</title>
+    <title>UNO Online v6.0 (Server Sync)</title>
     <style>
         body { font-family: 'Arial', sans-serif; background: #1e272e; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; overscroll-behavior: none; touch-action: pan-x pan-y; -webkit-user-select: none; user-select: none; }
         
@@ -133,7 +133,7 @@
         #timer-bar-container { width: 80%; height: 6px; background: #444; border-radius: 3px; margin: 0 auto 10px auto; overflow: hidden; display: none; }
         #timer-bar { height: 100%; width: 100%; background: #2ecc71; transition: width 1s linear, background 0.3s; }
 
-        /* === 新增：表情工具列 === */
+        /* === 表情工具列樣式 === */
         #emoji-bar {
             position: absolute;
             bottom: 180px;
@@ -156,7 +156,7 @@
         .emoji-btn:hover { background: rgba(255, 255, 255, 0.3); transform: scale(1.1); }
         .emoji-btn:active { transform: scale(0.95); }
 
-        /* === 新增：表情氣泡動畫 === */
+        /* === 表情氣泡動畫 === */
         .emoji-bubble {
             position: absolute;
             font-size: 60px;
@@ -193,11 +193,11 @@
         <h1 style="font-size: 50px; margin-bottom: 20px;">UNO <span style="color:#ffaa00">Online</span></h1>
         
         <div id="news-box">
-            <h3>📢 更新消息 (v5.4)</h3>
+            <h3>📢 更新消息 (v6.0)</h3>
             <ul>
-                <li>✨ 修復：所有玩家都能看到表情！</li>
+                <li>✨ 表情符號互動功能 (同步修復)</li>
                 <li>🛠️ 強制 20秒自動 Pass</li>
-                <li>🔒 聊天室與排隊系統優化</li>
+                <li>🔒 伺服器廣播對接完成</li>
             </ul>
         </div>
 
@@ -249,13 +249,11 @@
         let isInRoom = false;
         let turnTimer = null;
         const TURN_DURATION = 20;
-        
-        // 新增：儲存所有玩家資訊，用來在聊天室訊息中反查 ID
-        let allPlayers = [];
 
         const dingSound = new Audio("ding.mp3");
         dingSound.load();
 
+        // 伺服器網址
         const _0x1 = "aHR0cHM6Ly91bm8udHRjdHYtMTA1LmNj"; 
 
         function initGameSystem() {
@@ -269,25 +267,24 @@
             }
         }
 
-        // === 修改：發送表情 (利用 Chat 通道繞過 Server 限制) ===
+        // === 1. 發送表情 (按下按鈕後觸發) ===
         function sendEmoji(emoji) {
             if (socket) {
-                // 1. 本地顯示
-                showEmoji(myId, emoji);
-                // 2. 透過聊天室發送 "隱藏代碼"，這樣所有人都會收到通知
-                // 因為 Server 沒寫 playerEmoji，但肯定有寫 sendMessage
-                socket.emit('sendMessage', '$$EMOJI$$' + emoji);
+                // 這裡只發送給伺服器，等待伺服器廣播回來 (playerEmoji) 才顯示
+                // 這樣可以確保所有人 (包括自己) 看到的時機一致
+                socket.emit('sendEmoji', emoji);
             }
         }
 
-        // === 顯示表情動畫 (不變) ===
+        // === 3. 顯示表情氣泡 (通用函數) ===
         function showEmoji(socketId, emoji) {
             let targetEl = null;
             
+            // 判斷是「自己」還是「對手」
             if (socketId === myId) {
-                targetEl = document.getElementById('my-area');
+                targetEl = document.getElementById('my-area'); // 自己的區域
             } else {
-                targetEl = document.getElementById(`opp-${socketId}`);
+                targetEl = document.getElementById(`opp-${socketId}`); // 對手的區域
             }
 
             if (targetEl) {
@@ -295,6 +292,7 @@
                 bubble.className = 'emoji-bubble';
                 bubble.innerText = emoji;
                 
+                // 根據對象調整氣泡出現位置
                 if (socketId === myId) {
                     bubble.style.top = '-100px'; 
                     bubble.style.left = '50%';
@@ -305,6 +303,7 @@
 
                 targetEl.appendChild(bubble);
 
+                // 2秒後自動移除氣泡
                 setTimeout(() => {
                     bubble.remove();
                 }, 2000);
@@ -397,11 +396,11 @@
 
             socket.on('connect', () => { myId = socket.id; });
             
-            // 原本的 playerEmoji 監聽保留，以防伺服器未來更新
+            // === 2. 監聽伺服器廣播的表情訊號 ===
+            // 這是配合你已經在後端加入的 io.to(roomId).emit('playerEmoji', ...)
             socket.on('playerEmoji', (data) => {
-                if (data.socketId !== myId) {
-                    showEmoji(data.socketId, data.emoji);
-                }
+                // data 包含: { socketId: '...', emoji: '...' }
+                showEmoji(data.socketId, data.emoji);
             });
 
             socket.on('joinSuccess', (roomId) => {
@@ -416,7 +415,7 @@
                 document.getElementById('chat-wrapper').style.display = 'flex';
                 isInRoom = true;
                 document.getElementById('queue-overlay').style.display = 'none';
-                document.getElementById('emoji-bar').style.display = 'flex';
+                document.getElementById('emoji-bar').style.display = 'flex'; // 顯示表情欄
             });
             socket.on('leftGameSuccess', () => {
                 document.getElementById('join-form').style.display = 'flex';
@@ -434,35 +433,9 @@
                 document.getElementById('emoji-bar').style.display = 'none'; 
                 stopTimer();
             });
-
-            // === 修改：聊天訊息監聽 (攔截表情代碼) ===
             socket.on('receiveMessage', (data) => {
-                // 檢查是否為隱藏的表情代碼
-                if (data.text && data.text.startsWith('$$EMOJI$$')) {
-                    const emoji = data.text.replace('$$EMOJI$$', '');
-                    
-                    // 因為聊天訊息只給我們名字，我們需要反查 socketId
-                    // 1. 先查是否是自己
-                    if (data.name === document.getElementById('username').value) {
-                         // 自己已經在 sendEmoji 顯示過了，這裡可以忽略，或者做雙重確認
-                         // 為避免重複顯示，這裡可以 return，除非你想確認伺服器有廣播回來
-                         return; 
-                    }
-
-                    // 2. 查是否是對手
-                    const sender = allPlayers.find(p => p.name === data.name);
-                    if (sender) {
-                        showEmoji(sender.id, emoji);
-                    }
-                    
-                    // 攔截成功，不顯示在聊天室
-                    return; 
-                }
-
-                // 正常訊息
                 appendMessage(data.name, data.text, data.name === document.getElementById('username').value);
             });
-
             socket.on('roomListUpdate', (list) => {
                 const container = document.getElementById('lobby-list');
                 container.innerHTML = '';
@@ -490,8 +463,6 @@
                 });
             });
             socket.on('updatePlayerList', (players) => {
-                // 更新大廳玩家列表
-                allPlayers = players; 
                 const msgEl = document.getElementById('wait-msg');
                 if(msgEl) msgEl.innerText = `房間人數: ${players.map(p=>p.name).join(', ')} (${players.length}/10)`;
                 const btn = document.getElementById('start-btn');
@@ -503,9 +474,6 @@
             
             socket.on('gameStateUpdate', (state) => {
                 unlockInterface();
-                // === 重要：更新玩家清單，以便查 ID ===
-                allPlayers = state.players;
-
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('game-screen').style.display = 'flex';
                 document.getElementById('queue-overlay').style.display = 'none';
