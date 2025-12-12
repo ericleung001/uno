@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>UNO Online (Emoji Fixed)</title>
+    <title>UNO Online v8</title>
     <style>
         body { font-family: 'Arial', sans-serif; background: #1e272e; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; overscroll-behavior: none; touch-action: pan-x pan-y; -webkit-user-select: none; user-select: none; }
         
@@ -193,11 +193,11 @@
         <h1 style="font-size: 50px; margin-bottom: 20px;">UNO <span style="color:#ffaa00">Online</span></h1>
         
         <div id="news-box">
-            <h3>📢 更新消息 (Server Sync)</h3>
+            <h3>📢 更新消息 (Resolved)</h3>
             <ul>
-                <li>✨ 表情符號：修復為全房間同步顯示</li>
-                <li>🛠️ 通知：回歸經典簡潔風格 (v4.6)</li>
-                <li>🔒 伺服器同步優化</li>
+                <li>✨ 表情顯示：完美修復</li>
+                <li>🛠️ 出牌通知：優化體驗</li>
+                <li>🔒 系統核心：ID 對應修正</li>
             </ul>
         </div>
 
@@ -253,16 +253,10 @@
         const dingSound = new Audio("ding.mp3");
         dingSound.load();
 
-        // 伺服器網址 (如果你是在本地測試，這裡要改成 localhost:8300)
-        // const _0x1 = "aHR0cHM6Ly91bm8udHRjdHYtMTA1LmNj"; 
-        // 既然你改了 Server Code，這代表你可能已經部署了自己的伺服器
-        // 這裡暫時保留你的原本加密網址，如果連不上，請解開下面這行：
-        // const serverUrl = "http://localhost:8300"; 
+        // 確保這裡連接到你自己的伺服器
+        const serverUrl = "http://localhost:8300"; 
         
-        const _0x1 = "aHR0cHM6Ly91bm8udHRjdHYtMTA1LmNj"; 
-
         function initGameSystem() {
-            const serverUrl = atob(_0x1);
             try {
                 socket = io(serverUrl);
                 setupSocketEvents();
@@ -272,18 +266,15 @@
             }
         }
 
-        // === 1. 發送表情 (標準 Socket Emit) ===
         function sendEmoji(emoji) {
             if (socket) {
                 socket.emit('sendEmoji', emoji);
             }
         }
 
-        // === 2. 顯示表情 (接收 Server 廣播) ===
         function showEmoji(socketId, emoji) {
             let targetEl = null;
             
-            // 判斷是「自己」還是「對手」
             if (socketId === myId) {
                 targetEl = document.getElementById('my-area'); 
             } else {
@@ -397,25 +388,19 @@
 
             socket.on('connect', () => { myId = socket.id; });
             
-            // === 3. 監聽 Emoji 廣播 (這是重點) ===
+            // 監聽 Emoji
             socket.on('playerEmoji', (data) => {
-                // data.socketId 是誰發的，data.emoji 是表情
                 showEmoji(data.socketId, data.emoji);
             });
 
-            // === 4. 監聽遊戲通知 (顯示 Server 傳來的 v4.6 風格文字) ===
             socket.on('notification', (msg) => {
                 const notiBar = document.getElementById('notification-bar');
                 notiBar.innerText = msg;
                 notiBar.style.display = 'block';
                 notiBar.style.animation = 'none';
-                notiBar.offsetHeight; /* trigger reflow */
+                notiBar.offsetHeight;
                 notiBar.style.animation = 'fadeIn 0.3s';
-                
-                // 3秒後消失
-                setTimeout(() => {
-                    notiBar.style.display = 'none';
-                }, 3000);
+                setTimeout(() => { notiBar.style.display = 'none'; }, 3000);
             });
 
             socket.on('joinSuccess', (roomId) => {
@@ -567,7 +552,6 @@
         function sendPlay(ids, color) { 
             if(!socket || isProcessing) return; 
             
-            // 通知訊息已經由 Server 發送，這裡不需要 emit sendMessage 了
             lockInterface(); 
             socket.emit('playCard', { cardIds: ids, chooseColor: color }); 
             selectedCards.clear(); 
@@ -583,8 +567,22 @@
         function unlockInterface() { isProcessing = false; document.getElementById('my-hand').classList.remove('processing'); }
         function selectRoom(id) { document.getElementById('room-id').value = id; const input = document.getElementById('room-id'); input.style.backgroundColor = '#444'; setTimeout(() => input.style.backgroundColor = '#fff', 200); }
         function createCardEl(c) { const div = document.createElement('div'); div.className = `card ${c.color}`; let display = c.value; let sub = ""; if(c.type === 'draw2') display = '+2'; if(c.type === 'draw4') { display = '+4'; sub = "Wild"; } if(c.type === 'skip') display = '⊘'; if(c.type === 'reverse') display = '⇄'; if(c.type === 'wild') { display = '🌈'; sub = "Wild"; } div.innerHTML = `<div>${display}</div>${sub ? `<small>${sub}</small>` : ''}`; return div; }
-        function renderDiscard(card) { const pile = document.getElementById('discard'); pile.className = `card ${card.color}`; let activeColor = card.tempColor || (card.color !== 'black' ? card.color : null); if (activeColor) { pile.style.borderColor = getHexColor(activeColor); pile.style.boxShadow = `0 0 20px ${getHexColor(activeColor)}`; } else { pile.style.borderColor = 'white'; pile.style.boxShadow = '3px 3px 8px rgba(0,0,0,0.6)'; } let display = card.value; let sub = ""; if(card.type === 'draw2') display = '+2'; if(card.type === 'draw4') { display = '+4'; sub = "Wild"; } if(card.type === 'skip') display = '⊘'; if(card.type === 'reverse') display = '⇄'; if(card.type === 'wild') { display = '🌈'; sub = "Wild"; } pile.innerHTML = `<div>${display}</div>${sub ? `<small>${sub}</small>` : ''}`; const hint = document.getElementById('color-hint'); if (activeColor) { hint.style.display = 'block'; hint.innerText = `當前顏色: ${getColorName(activeColor)}`; hint.style.color = getHexColor(activeColor); } else { hint.style.display = 'none'; } }
-        function renderOpponents(players, currentId) { const div = document.getElementById('opponents'); div.innerHTML = ''; players.forEach(p => { if(p.id === myId) return; const el = document.createElement('div'); el.className = `opp ${p.id === currentId ? 'active' : ''}`; el.id = `opp-${p.socketId}`; el.innerHTML = `<div>${p.name}</div><div style="font-size:18px">🂠 ${p.handCount}</div>`; div.appendChild(el); }); }
+        
+        // !!! 修正重點：這裡改用 p.id 而不是 p.socketId，確保跟 Server 資料對應
+        function renderOpponents(players, currentId) { 
+            const div = document.getElementById('opponents'); 
+            div.innerHTML = ''; 
+            players.forEach(p => { 
+                if(p.id === myId) return; 
+                const el = document.createElement('div'); 
+                el.className = `opp ${p.id === currentId ? 'active' : ''}`; 
+                // !!! 修正：這裡改成 p.id
+                el.id = `opp-${p.id}`; 
+                el.innerHTML = `<div>${p.name}</div><div style="font-size:18px">🂠 ${p.handCount}</div>`; 
+                div.appendChild(el); 
+            }); 
+        }
+        
         function getHexColor(c) { if(c === 'red') return '#ff5555'; if(c === 'blue') return '#5555ff'; if(c === 'green') return '#55aa55'; if(c === 'yellow') return '#ffaa00'; return 'white'; }
         function getColorName(c) { if(c === 'red') return '紅色'; if(c === 'blue') return '藍色'; if(c === 'green') return '綠色'; if(c === 'yellow') return '黃色'; return c; }
         function renderDrawButton(stack) { const btn = document.getElementById('draw-btn'); const txt = document.getElementById('draw-text'); const sub = document.getElementById('draw-sub'); if (stack > 0) { btn.classList.add('penalty'); txt.innerText = `⚠️`; sub.innerText = `領取 (+${stack})`; sub.style.color = '#e74c3c'; sub.style.fontWeight = 'bold'; } else { btn.classList.remove('penalty'); txt.innerText = `PASS`; sub.innerText = `(抽牌)`; sub.style.color = '#aaa'; sub.style.fontWeight = 'normal'; } }
