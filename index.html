@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>UNO Online (v5.3)</title>
+    <title>UNO Online (v5.2)</title>
     <style>
         body { font-family: 'Arial', sans-serif; background: #1e272e; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; overscroll-behavior: none; touch-action: pan-x pan-y; -webkit-user-select: none; user-select: none; }
         
@@ -227,7 +227,7 @@
                 <button class="emoji-btn" onclick="sendEmoji('😭')">😭</button>
             </div>
 
-
+            <button id="uno-btn" onclick="sayUnoAction()">UNO!</button>
             <button id="play-action-btn" onclick="confirmPlay()">確認出牌</button>
             <div id="status-bar">準備開始</div>
             <div id="timer-bar-container"><div id="timer-bar"></div></div>
@@ -322,7 +322,13 @@
             }
         }
 
-       
+        function sayUnoAction() {
+            if (socket) {
+                //socket.emit('sayUno'); 
+                socket.emit('sendMessage', '🔥 UNO! 我剩下最後一張牌了！');
+                document.getElementById('uno-btn').style.display = 'none';
+            }
+        }
 
         function startTimer() {
             stopTimer(); 
