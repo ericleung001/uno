@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>UNO Online v4.9 (Chat Color Fix)</title>
+    <title>UNO Online v5.0</title>
     <style>
         body { font-family: 'Arial', sans-serif; background: #1e272e; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; overscroll-behavior: none; touch-action: pan-x pan-y; -webkit-user-select: none; user-select: none; }
         
@@ -25,15 +25,7 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* 通知欄 */
-        #notification-bar { 
-            position: fixed; top: 10%; left: 50%; transform: translateX(-50%); 
-            background: rgba(255, 165, 2, 0.95); color: black; padding: 12px 30px; 
-            border-radius: 30px; font-weight: 800; font-size: 20px; z-index: 6000; 
-            display: none; box-shadow: 0 5px 20px rgba(0,0,0,0.6); white-space: nowrap; 
-            border: 3px solid white; animation: slideDown 0.3s;
-        }
-        @keyframes slideDown { from { top: -50px; opacity: 0; } to { top: 10%; opacity: 1; } }
+        #notification-bar { position: fixed; top: 10%; left: 50%; transform: translateX(-50%); background: rgba(255, 165, 2, 0.95); color: black; padding: 12px 25px; border-radius: 30px; font-weight: bold; font-size: 18px; z-index: 6000; display: none; box-shadow: 0 5px 15px rgba(0,0,0,0.5); white-space: nowrap; }
 
         /* 聊天室 */
         #chat-wrapper { position: fixed; bottom: 20px; right: 20px; z-index: 3000; display: flex; flex-direction: column; align-items: flex-end; }
@@ -162,11 +154,11 @@
         <h1 style="font-size: 50px; margin-bottom: 20px;">UNO <span style="color:#ffaa00">Online</span></h1>
         
         <div id="news-box">
-            <h3>📢 更新消息 (v4.9)</h3>
+            <h3>📢 更新消息 (v5.0)</h3>
             <ul>
-                <li>✨ 出牌提示增加顏色標示</li>
-                <li>⏱️ 20秒自動 Pass 機制</li>
-                <li>🛠️ 聊天室與排隊系統優化</li>
+                <li>20秒自動 Pass 機制</li>
+                <li>iOS用家請將網頁加到"主畫面"防止滑走</li>
+                <li>增加UNO按鈕</li>
             </ul>
         </div>
 
@@ -251,19 +243,6 @@
                 socket.emit('sendMessage', '🔥 UNO! 我剩下最後一張牌了！');
                 document.getElementById('uno-btn').style.display = 'none';
             }
-        }
-
-        // === 通知顯示函數 (與 Notification Bar 連動) ===
-        function showNotification(msg) {
-            const bar = document.getElementById('notification-bar');
-            bar.innerText = msg;
-            bar.style.display = 'block';
-            
-            if (window.notificationTimeout) clearTimeout(window.notificationTimeout);
-            
-            window.notificationTimeout = setTimeout(() => { 
-                bar.style.display = 'none'; 
-            }, 3000);
         }
 
         function startTimer() {
@@ -393,10 +372,7 @@
                 else btn.style.display = 'none';
             });
             
-            // === 修改：接收通知時直接顯示在通知欄 ===
-            socket.on('notification', (msg) => {
-                showNotification(msg);
-            });
+            // 移除了 notification 監聽器，因為已刪除通知欄
             
             socket.on('gameStateUpdate', (state) => {
                 unlockInterface();
@@ -458,13 +434,12 @@
         function leaveGameAction() { if(socket) socket.emit('leaveGame'); }
         function startGameAction() { if(socket) socket.emit('startGame'); }
         
-        // === 修改：抽牌時顯示通知 ===
+        // === 修改：抽牌時不再發送通知 ===
         function drawCardAction() { 
             if(socket && !isProcessing) { 
                 lockInterface(); 
                 socket.emit('drawCard'); 
-                // socket.emit('sendMessage', '抽了一張牌 / Pass'); // 移除聊天室通知
-                // showNotification('抽了一張牌 / Pass'); // 可選：如果想顯示自己抽牌可加這行
+                // socket.emit('sendMessage', '抽了一張牌 / Pass'); 
             } 
         }
         
@@ -480,21 +455,12 @@
             } 
         }
         
-        // === 關鍵修改：發送出牌提示到通知欄 ===
+        // === 關鍵修改：發送出牌提示到聊天室 (不使用通知欄) ===
         function sendPlay(ids, color) { 
             if(!socket || isProcessing) return; 
             
-            const cards = ids.map(id => window.myHandData.find(c => c.id === id));
-            const cardNames = cards.map(c => getCardDisplayName(c)).join(' + ');
-            const colorMap = { 'red': '紅色', 'blue': '藍色', 'green': '綠色', 'yellow': '黃色' };
-            let msg = `已出牌: ${cardNames}`;
-            if (color) msg += ` (轉為${colorMap[color]})`;
+            // 移除了 showNotification
             
-            // 使用 showNotification 而不是 sendMessage
-            showNotification(msg); // 顯示在通知欄 (給自己看)
-            // 同時廣播給其他人 (這需要後端配合，若無法改後端，這行 sendMessage 還是需要的，否則別人看不到你出了什麼)
-            socket.emit('sendMessage', `出了一張 ${cardNames}` + (color ? ` (轉為${colorMap[color]})` : ''));
-
             lockInterface(); 
             socket.emit('playCard', { cardIds: ids, chooseColor: color }); 
             selectedCards.clear(); 
