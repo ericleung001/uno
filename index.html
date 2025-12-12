@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>UNO Online (v4.8 Connection Fixed)</title>
+    <title>UNO Online (v4.9 Connection Fixed)</title>
     <style>
         body { font-family: 'Arial', sans-serif; background: #1e272e; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; overscroll-behavior: none; touch-action: pan-x pan-y; -webkit-user-select: none; user-select: none; }
         
@@ -576,9 +576,9 @@
             const div = document.getElementById('opponents'); 
             div.innerHTML = ''; 
             players.forEach(p => { 
-                if(p.socketId === myId) return; 
+                if(socket.id === myId) return; 
                 const el = document.createElement('div'); 
-                el.className = `opp ${p.socketId === currentId ? 'active' : ''}`; 
+                el.className = `opp ${socket.id === currentId ? 'active' : ''}`; 
                 // !!! 這裡原本是 p.socketId，改為 p.id 即可 !!!
                 el.id = `opp-${p.id}`; 
                 el.innerHTML = `<div>${p.name}</div><div style="font-size:18px">🂠 ${p.handCount}</div>`; 
