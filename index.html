@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>UNO Online v4.7 (Timer & Chat Fix)</title>
+    <title>UNO Online v4.8 (Notification Bar Fix)</title>
     <style>
         body { font-family: 'Arial', sans-serif; background: #1e272e; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; overscroll-behavior: none; touch-action: pan-x pan-y; -webkit-user-select: none; user-select: none; }
         
@@ -25,7 +25,26 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
-        #notification-bar { position: fixed; top: 10%; left: 50%; transform: translateX(-50%); background: rgba(255, 165, 2, 0.95); color: black; padding: 12px 25px; border-radius: 30px; font-weight: bold; font-size: 18px; z-index: 6000; display: none; box-shadow: 0 5px 15px rgba(0,0,0,0.5); white-space: nowrap; }
+        /* 通知欄 (樣式優化) */
+        #notification-bar { 
+            position: fixed; 
+            top: 10%; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            background: rgba(255, 165, 2, 0.95); 
+            color: black; 
+            padding: 12px 30px; 
+            border-radius: 30px; 
+            font-weight: 800; 
+            font-size: 20px; 
+            z-index: 6000; 
+            display: none; 
+            box-shadow: 0 5px 20px rgba(0,0,0,0.6); 
+            white-space: nowrap; 
+            border: 3px solid white;
+            animation: slideDown 0.3s;
+        }
+        @keyframes slideDown { from { top: -50px; opacity: 0; } to { top: 10%; opacity: 1; } }
 
         /* 聊天室 */
         #chat-wrapper { position: fixed; bottom: 20px; right: 20px; z-index: 3000; display: flex; flex-direction: column; align-items: flex-end; }
@@ -154,11 +173,11 @@
         <h1 style="font-size: 50px; margin-bottom: 20px;">UNO <span style="color:#ffaa00">Online</span></h1>
         
         <div id="news-box">
-            <h3>📢 更新消息 (v4.7)</h3>
+            <h3>📢 更新消息 (v4.8)</h3>
             <ul>
-                <li>✨ 出牌顯示更詳細 (如: 紅色 1)</li>
-                <li>⏱️ 20秒倒數會持續進行 (防掛機)</li>
-                <li>🛠️ UNO 按鈕 & 排隊系統優化</li>
+                <li>✨ 出牌提示已移至上方通知欄</li>
+                <li>⏱️ 20秒自動 Pass 機制</li>
+                <li>🛠️ 聊天室與排隊系統優化</li>
             </ul>
         </div>
 
@@ -212,7 +231,6 @@
         function initGameSystem() {
             const serverUrl = atob(_0x1);
             try {
-                // 恢復標準連線 (不強制 websocket)
                 socket = io(serverUrl);
                 setupSocketEvents();
             } catch (e) {
@@ -245,7 +263,20 @@
             }
         }
 
-        // === 倒數計時函數 ===
+        // === 新增：通用通知顯示函數 ===
+        function showNotification(msg) {
+            const bar = document.getElementById('notification-bar');
+            bar.innerText = msg;
+            bar.style.display = 'block';
+            
+            // 清除之前的計時器，避免閃爍
+            if (window.notificationTimeout) clearTimeout(window.notificationTimeout);
+            
+            window.notificationTimeout = setTimeout(() => { 
+                bar.style.display = 'none'; 
+            }, 3000);
+        }
+
         function startTimer() {
             stopTimer(); 
             let timeLeft = TURN_DURATION;
@@ -274,15 +305,12 @@
             document.getElementById('status-bar').style.color = '#aaa'; 
         }
 
-        // === 新增：卡牌名稱轉換 (為了詳細提示) ===
         function getCardDisplayName(card) {
             const colorMap = { 'red': '紅色', 'blue': '藍色', 'green': '綠色', 'yellow': '黃色', 'black': '黑色' };
             const typeMap = { 'skip': '禁止', 'reverse': '反轉', 'draw2': '+2', 'draw4': '+4', 'wild': '轉色' };
             let c = colorMap[card.color] || '';
             let v = typeMap[card.type] || card.value;
-            // 如果是數字牌，card.value 會有值，如果不是，就看 typeMap
             if (card.value === undefined || card.value === null) v = typeMap[card.type]; 
-            // 野卡特殊處理
             if (card.type === 'wild' || card.type === 'draw4') return `${c}${v}`; 
             return `${c} ${v}`;
         }
@@ -375,12 +403,12 @@
                 if(players.length >= 2) btn.style.display = 'inline-block';
                 else btn.style.display = 'none';
             });
+            
+            // === 修改：使用共用的 showNotification ===
             socket.on('notification', (msg) => {
-                const bar = document.getElementById('notification-bar');
-                bar.innerText = msg;
-                bar.style.display = 'block';
-                setTimeout(() => { bar.style.display = 'none'; }, 2000);
+                showNotification(msg);
             });
+            
             socket.on('gameStateUpdate', (state) => {
                 unlockInterface();
                 document.getElementById('login-screen').style.display = 'none';
@@ -395,12 +423,7 @@
                 statusEl.innerText = isMyTurn ? "👉 輪到你了！" : "等待對手...";
                 statusEl.style.color = isMyTurn ? "#f1c40f" : "#aaa";
                 document.getElementById('direction-indicator').innerText = state.direction === 1 ? "順時針 ↻" : "逆時針 ↺";
-                if (isMyTurn) { 
-                    if (lastActivePlayer !== myId) playTurnSound(); 
-                    startTimer(); 
-                } else { 
-                    stopTimer(); 
-                }
+                if (isMyTurn) { if (lastActivePlayer !== myId) playTurnSound(); startTimer(); } else { stopTimer(); }
                 lastActivePlayer = state.currentPlayer;
             });
             socket.on('yourHand', (hand) => {
@@ -445,22 +468,13 @@
         function clickRoomItem(roomId) { if (roomId.includes('#')) { const cleanId = roomId.split('#')[0]; const inputPass = prompt(`房間 [${cleanId}] 需要密碼，請輸入：`); if (inputPass === null) return; const name = document.getElementById('username').value.trim(); if(!name) return alert("請先輸入暱稱"); if (/[<>]/.test(name)) return alert("暱稱不能包含特殊符號"); const tryId = `${cleanId}#${inputPass}`; if (tryId !== roomId) { alert("密碼錯誤！"); return; } socket.emit('joinGame', { name, roomId: tryId }); } else { selectRoom(roomId); } }
         function leaveGameAction() { if(socket) socket.emit('leaveGame'); }
         function startGameAction() { if(socket) socket.emit('startGame'); }
-        
-        // === 修改：抽牌時發送提示 ===
-        function drawCardAction() { 
-            if(socket && !isProcessing) { 
-                lockInterface(); 
-                socket.emit('drawCard'); 
-                socket.emit('sendMessage', '抽了一張牌 / Pass'); // 抽牌提示
-            } 
-        }
-        
+        function drawCardAction() { if(socket && !isProcessing) { lockInterface(); socket.emit('drawCard'); } }
         function toggleCardSelection(cardId, element) { if (isProcessing) return; if (selectedCards.has(cardId)) { selectedCards.delete(cardId); element.classList.remove('selected'); } else { selectedCards.add(cardId); element.classList.add('selected'); } updatePlayButton(); }
         function updatePlayButton() { const btn = document.getElementById('play-action-btn'); if (selectedCards.size > 0) { btn.style.display = 'block'; btn.innerText = `出牌 (${selectedCards.size})`; } else { btn.style.display = 'none'; } }
         function confirmPlay() { if (selectedCards.size === 0) return; const cardIds = Array.from(selectedCards); const cards = cardIds.map(id => window.myHandData.find(c => c.id === id)).filter(c => c); if (cards.length > 1) { const firstVal = cards[0].value; const allSame = cards.every(c => c.value === firstVal); if (!allSame) { alert("連擊失敗：數字或功能不相同！"); return; } } const hasBlack = cards.some(c => c.color === 'black'); const distinctPlayColors = [...new Set(cards.filter(c => c.color !== 'black').map(c => c.color))]; let needsColorSelection = false; if (hasBlack) { needsColorSelection = true; } else if (cardIds.length > 1) { if (distinctPlayColors.length > 1) { needsColorSelection = true; } else { needsColorSelection = false; } } if (needsColorSelection) { pendingPlayData = cardIds; let allowedColors = []; if (hasBlack) { allowedColors = ['red', 'blue', 'green', 'yellow']; } else { allowedColors = [...distinctPlayColors]; } if (!hasBlack && currentActiveColor && currentActiveColor !== 'black') { allowedColors = allowedColors.filter(c => c !== currentActiveColor); } showColorModal(allowedColors); } else { sendPlay(cardIds, null); } }
         function showColorModal(allowedColors) { const all = ['red', 'blue', 'green', 'yellow']; all.forEach(c => { const btn = document.getElementById(`modal-btn-${c}`); if (allowedColors.includes(c)) { btn.classList.remove('disabled'); } else { btn.classList.add('disabled'); } }); document.getElementById('color-modal').style.display = 'flex'; }
         
-        // === 修改：選擇顏色後發送帶顏色的提示 ===
+        // === 修改：選擇顏色後更新出牌提示 ===
         function selectColor(color) { 
             if (pendingPlayData && socket) { 
                 sendPlay(pendingPlayData, color); 
@@ -468,19 +482,18 @@
             } 
         }
         
-        // === 關鍵修改：發送出牌詳細提示 ===
+        // === 關鍵修改：將出牌提示發送到通知欄，而不是聊天室 ===
         function sendPlay(ids, color) { 
             if(!socket || isProcessing) return; 
             
-            // 組合提示訊息
             const cards = ids.map(id => window.myHandData.find(c => c.id === id));
             const cardNames = cards.map(c => getCardDisplayName(c)).join(' + ');
             const colorMap = { 'red': '紅色', 'blue': '藍色', 'green': '綠色', 'yellow': '黃色' };
-            let msg = `出了一張 ${cardNames}`;
+            let msg = `已出牌: ${cardNames}`;
             if (color) msg += ` (轉為${colorMap[color]})`;
             
-            socket.emit('sendMessage', msg); // 發送到聊天室
-
+            showNotification(msg); // 顯示在通知欄
+            
             lockInterface(); 
             socket.emit('playCard', { cardIds: ids, chooseColor: color }); 
             selectedCards.clear(); 
@@ -488,13 +501,7 @@
         }
         
         function closeColorModal() { document.getElementById('color-modal').style.display = 'none'; pendingPlayData = null; }
-        
-        // === 修改：lockInterface 移除 stopTimer，讓計時繼續 ===
-        function lockInterface() { 
-            isProcessing = true; 
-            document.getElementById('my-hand').classList.add('processing'); 
-            // stopTimer(); // 移除此行，讓倒數繼續
-        }
+        function lockInterface() { isProcessing = true; document.getElementById('my-hand').classList.add('processing'); }
         function unlockInterface() { isProcessing = false; document.getElementById('my-hand').classList.remove('processing'); }
         function selectRoom(id) { document.getElementById('room-id').value = id; const input = document.getElementById('room-id'); input.style.backgroundColor = '#444'; setTimeout(() => input.style.backgroundColor = '#fff', 200); }
         function createCardEl(c) { const div = document.createElement('div'); div.className = `card ${c.color}`; let display = c.value; let sub = ""; if(c.type === 'draw2') display = '+2'; if(c.type === 'draw4') { display = '+4'; sub = "Wild"; } if(c.type === 'skip') display = '⊘'; if(c.type === 'reverse') display = '⇄'; if(c.type === 'wild') { display = '🌈'; sub = "Wild"; } div.innerHTML = `<div>${display}</div>${sub ? `<small>${sub}</small>` : ''}`; return div; }
