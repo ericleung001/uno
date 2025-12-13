@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>UNO Online (NPC Added)v2</title>
+    <title>UNO Online (Debug Mode)</title>
     <style>
         body { font-family: 'Arial', sans-serif; background: #1e272e; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; overscroll-behavior: none; touch-action: pan-x pan-y; -webkit-user-select: none; user-select: none; }
         
@@ -291,37 +291,17 @@
 
         // === 新增：加入NPC ===
         function addNpcAction() {
-            if (!socket) {
-                alert("❌ 錯誤：無法連接到伺服器！");
-                return;
+            if (socket) {
+                // 加入 Log，讓你知道是否真的點擊了
+                console.log("正在嘗試加入 NPC...");
+                
+                socket.emit('addNPC');
+                
+                // 為了用戶體驗，點擊後讓按鈕變色或顯示處理中，不要直接隱藏
+                const btn = document.getElementById('npc-challenge-btn');
+                btn.innerText = "⏳ 呼叫電腦中...";
+                btn.disabled = true;
             }
-            
-            // 檢查是否真的在房間內
-            if (!isInRoom) {
-                alert("❌ 錯誤：系統偵測不到你在房間內，請刷新網頁 (F5) 重新加入！");
-                return;
-            }
-
-            console.log("正在發送加入 NPC 請求...");
-            socket.emit('addNPC');
-            
-            // 🔥 修改：不要在這裡立刻隱藏按鈕！
-            // 讓伺服器通知我們成功後，按鈕自然會消失 (因為遊戲開始了)
-            // document.getElementById('npc-challenge-btn').style.display = 'none'; 
-            
-            // 給個提示
-            const btn = document.getElementById('npc-challenge-btn');
-            btn.innerText = "⏳ 呼叫電腦中...";
-            btn.disabled = true; // 暫時鎖住防止連點
-            
-            // 如果 3 秒後還沒反應，代表伺服器無視了
-            setTimeout(() => {
-                if (document.getElementById('game-screen').style.display === 'none') {
-                    alert("⚠️ 無反應？\n請嘗試刷新網頁 (F5) 重新加入房間。\n(原因：伺服器重啟後遺失了房間記憶)");
-                    btn.innerText = "🤖 挑戰最強NPC";
-                    btn.disabled = false;
-                }
-            }, 3000);
         }
 
         function sendEmoji(emoji) {
@@ -460,6 +440,18 @@
                 setTimeout(() => { notiBar.style.display = 'none'; }, 3000);
             });
 
+            // === 增加：錯誤訊息處理 ===
+            // 當伺服器回報錯誤時 (例如 Server 重啟導致房間失效)
+            socket.on('errorMsg', (msg) => {
+                alert("伺服器訊息: " + msg);
+                // 重置按鈕狀態
+                const btn = document.getElementById('npc-challenge-btn');
+                if(btn) {
+                    btn.innerText = "🤖 挑戰最強NPC";
+                    btn.disabled = false;
+                }
+            });
+
             socket.on('joinSuccess', (roomId) => {
                 document.getElementById('join-form').style.display = 'none';
                 document.getElementById('news-box').style.display = 'none';
@@ -476,14 +468,15 @@
 
                 // === 新增：啟動NPC計時器 ===
                 clearTimeout(npcWaitTimer);
+                // 測試用：5秒後顯示
                 npcWaitTimer = setTimeout(() => {
                     const btn = document.getElementById('npc-challenge-btn');
-                    // 只有當房間人數為1時才顯示
                     const playerCountText = document.getElementById('wait-msg').innerText;
+                    // 只在 1/10 人的時候顯示
                     if(playerCountText.includes('(1/10)')) {
                         btn.style.display = 'block';
                     }
-                }, 60000); // 60秒後顯示
+                }, 5000); 
             });
 
             socket.on('leftGameSuccess', () => {
