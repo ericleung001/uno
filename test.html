@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>UNO Online (Final Polish)</title>
+    <title>UNO Online (v4.7 + NPC)</title>
     <style>
         body { font-family: 'Arial', sans-serif; background: #1e272e; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; overscroll-behavior: none; touch-action: pan-x pan-y; -webkit-user-select: none; user-select: none; }
         
@@ -24,7 +24,11 @@
         .spinner { border: 8px solid #f3f3f3; border-top: 8px solid #fbc531; border-radius: 50%; width: 60px; height: 60px; animation: spin 2s linear infinite; margin: 20px auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
-        /* 這裡原本是 fadeIn，我移到下面統一修正 */
+        /* 動畫修復：通知欄左右置中 */
+        @keyframes fadeIn { 
+            from { opacity: 0; transform: translate(-50%, 20px); } 
+            to { opacity: 1; transform: translate(-50%, 0); } 
+        }
 
         #notification-bar { position: fixed; top: 10%; left: 50%; transform: translateX(-50%); background: rgba(255, 165, 2, 0.95); color: black; padding: 12px 25px; border-radius: 30px; font-weight: bold; font-size: 18px; z-index: 6000; display: none; box-shadow: 0 5px 15px rgba(0,0,0,0.5); white-space: nowrap; }
 
@@ -72,7 +76,7 @@
             border: 2px solid #f1c40f;
             cursor: pointer;
             margin-top: 20px;
-            display: none;
+            display: none; /* 預設隱藏 */
             animation: pulse-red 2s infinite;
             box-shadow: 0 0 20px rgba(192, 57, 43, 0.6);
         }
@@ -189,13 +193,6 @@
             50% { transform: translate(-50%, -30px) scale(1); opacity: 1; }
             100% { transform: translate(-50%, -80px) scale(0.8); opacity: 0; }
         }
-
-        /* === 🔥 修正後：通知欄動畫 === */
-        @keyframes fadeIn { 
-            /* 重點：這裡要加返 translate(-50%, ...) 保持水平置中 */
-            from { opacity: 0; transform: translate(-50%, 20px); } 
-            to { opacity: 1; transform: translate(-50%, 0); } 
-        }
     </style>
 </head>
 <body>
@@ -218,11 +215,11 @@
         <h1 style="font-size: 50px; margin-bottom: 20px;">UNO <span style="color:#ffaa00">Online</span></h1>
         
         <div id="news-box">
-            <h3>📢 更新消息 (Final Polish)</h3>
+            <h3>📢 更新消息 (v4.7 + NPC)</h3>
             <ul>
-                <li>✨ 介面：修復通知欄偏移問題</li>
-                <li>🤖 功能：挑戰最強電腦已上線</li>
-                <li>🛠️ 體驗：流程優化完成</li>
+                <li>✨ 表情顯示：修復通知欄與氣泡位置</li>
+                <li>🤖 功能：挑戰最強電腦 (需遠端更新)</li>
+                <li>🔒 連線：v4.7 加密伺服器</li>
             </ul>
         </div>
 
@@ -283,10 +280,11 @@
         const dingSound = new Audio("ding.mp3");
         dingSound.load();
 
-        // 這裡確保連線到你自己運行的 Server
-        const serverUrl = "http://localhost:8300"; 
+        const _0x1 = "aHR0cHM6Ly91bm8udHRjdHYtMTA1LmNj"; 
 
         function initGameSystem() {
+            // v4.7 加密連線
+            const serverUrl = atob(_0x1);
             try {
                 socket = io(serverUrl);
                 setupSocketEvents();
