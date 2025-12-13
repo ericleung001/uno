@@ -291,10 +291,37 @@
 
         // === 新增：加入NPC ===
         function addNpcAction() {
-            if (socket) {
-                socket.emit('addNPC');
-                document.getElementById('npc-challenge-btn').style.display = 'none'; // 點擊後隱藏
+            if (!socket) {
+                alert("❌ 錯誤：無法連接到伺服器！");
+                return;
             }
+            
+            // 檢查是否真的在房間內
+            if (!isInRoom) {
+                alert("❌ 錯誤：系統偵測不到你在房間內，請刷新網頁 (F5) 重新加入！");
+                return;
+            }
+
+            console.log("正在發送加入 NPC 請求...");
+            socket.emit('addNPC');
+            
+            // 🔥 修改：不要在這裡立刻隱藏按鈕！
+            // 讓伺服器通知我們成功後，按鈕自然會消失 (因為遊戲開始了)
+            // document.getElementById('npc-challenge-btn').style.display = 'none'; 
+            
+            // 給個提示
+            const btn = document.getElementById('npc-challenge-btn');
+            btn.innerText = "⏳ 呼叫電腦中...";
+            btn.disabled = true; // 暫時鎖住防止連點
+            
+            // 如果 3 秒後還沒反應，代表伺服器無視了
+            setTimeout(() => {
+                if (document.getElementById('game-screen').style.display === 'none') {
+                    alert("⚠️ 無反應？\n請嘗試刷新網頁 (F5) 重新加入房間。\n(原因：伺服器重啟後遺失了房間記憶)");
+                    btn.innerText = "🤖 挑戰最強NPC";
+                    btn.disabled = false;
+                }
+            }, 3000);
         }
 
         function sendEmoji(emoji) {
