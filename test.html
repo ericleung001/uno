@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>UNO Online (Debug Mode)v2</title>
+    <title>UNO Online (Final Polish)</title>
     <style>
         body { font-family: 'Arial', sans-serif; background: #1e272e; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; overscroll-behavior: none; touch-action: pan-x pan-y; -webkit-user-select: none; user-select: none; }
         
@@ -23,7 +23,8 @@
         #queue-content { background: #2f3640; padding: 40px; border-radius: 20px; border: 2px solid #fbc531; box-shadow: 0 0 50px rgba(0,0,0,0.8); animation: fadeIn 0.5s; }
         .spinner { border: 8px solid #f3f3f3; border-top: 8px solid #fbc531; border-radius: 50%; width: 60px; height: 60px; animation: spin 2s linear infinite; margin: 20px auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* 這裡原本是 fadeIn，我移到下面統一修正 */
 
         #notification-bar { position: fixed; top: 10%; left: 50%; transform: translateX(-50%); background: rgba(255, 165, 2, 0.95); color: black; padding: 12px 25px; border-radius: 30px; font-weight: bold; font-size: 18px; z-index: 6000; display: none; box-shadow: 0 5px 15px rgba(0,0,0,0.5); white-space: nowrap; }
 
@@ -71,7 +72,7 @@
             border: 2px solid #f1c40f;
             cursor: pointer;
             margin-top: 20px;
-            display: none; /* 預設隱藏 */
+            display: none;
             animation: pulse-red 2s infinite;
             box-shadow: 0 0 20px rgba(192, 57, 43, 0.6);
         }
@@ -188,6 +189,13 @@
             50% { transform: translate(-50%, -30px) scale(1); opacity: 1; }
             100% { transform: translate(-50%, -80px) scale(0.8); opacity: 0; }
         }
+
+        /* === 🔥 修正後：通知欄動畫 === */
+        @keyframes fadeIn { 
+            /* 重點：這裡要加返 translate(-50%, ...) 保持水平置中 */
+            from { opacity: 0; transform: translate(-50%, 20px); } 
+            to { opacity: 1; transform: translate(-50%, 0); } 
+        }
     </style>
 </head>
 <body>
@@ -210,11 +218,11 @@
         <h1 style="font-size: 50px; margin-bottom: 20px;">UNO <span style="color:#ffaa00">Online</span></h1>
         
         <div id="news-box">
-            <h3>📢 更新消息 (v5.4 + NPC)</h3>
+            <h3>📢 更新消息 (Final Polish)</h3>
             <ul>
-                <li>✨ 新增：等候1分鐘可挑戰最強NPC！</li>
-                <li>🛠️ 修復：ID對應問題與第一張牌顯示</li>
-                <li>🔒 連線方式：v4.7 加密節點</li>
+                <li>✨ 介面：修復通知欄偏移問題</li>
+                <li>🤖 功能：挑戰最強電腦已上線</li>
+                <li>🛠️ 體驗：流程優化完成</li>
             </ul>
         </div>
 
@@ -241,7 +249,7 @@
         </div>
         <div id="my-area">
             <div id="emoji-bar" style="display:none;">
-                <button class="emoji-btn" onclick="sendEmoji('U𝗡𝐎')">U𝗡𝐎</button>
+                <button class="emoji-btn" onclick="sendEmoji('😂')">😂</button>
                 <button class="emoji-btn" onclick="sendEmoji('😡')">😡</button>
                 <button class="emoji-btn" onclick="sendEmoji('😎')">😎</button>
                 <button class="emoji-btn" onclick="sendEmoji('😭')">😭</button>
@@ -270,16 +278,15 @@
         let turnTimer = null;
         const TURN_DURATION = 20;
         
-        let npcWaitTimer = null; // NPC 計時器
+        let npcWaitTimer = null; 
 
         const dingSound = new Audio("ding.mp3");
         dingSound.load();
 
-        const _0x1 = "aHR0cHM6Ly91bm8udHRjdHYtMTA1LmNj"; 
+        // 這裡確保連線到你自己運行的 Server
+        const serverUrl = "http://localhost:8300"; 
 
         function initGameSystem() {
-            // === 恢復 v4.7 的連線方式 (加密 URL) ===
-            const serverUrl = atob(_0x1);
             try {
                 socket = io(serverUrl);
                 setupSocketEvents();
@@ -289,15 +296,10 @@
             }
         }
 
-        // === 新增：加入NPC ===
         function addNpcAction() {
             if (socket) {
-                // 加入 Log，讓你知道是否真的點擊了
                 console.log("正在嘗試加入 NPC...");
-                
                 socket.emit('addNPC');
-                
-                // 為了用戶體驗，點擊後讓按鈕變色或顯示處理中，不要直接隱藏
                 const btn = document.getElementById('npc-challenge-btn');
                 btn.innerText = "⏳ 呼叫電腦中...";
                 btn.disabled = true;
@@ -440,11 +442,8 @@
                 setTimeout(() => { notiBar.style.display = 'none'; }, 3000);
             });
 
-            // === 增加：錯誤訊息處理 ===
-            // 當伺服器回報錯誤時 (例如 Server 重啟導致房間失效)
             socket.on('errorMsg', (msg) => {
                 alert("伺服器訊息: " + msg);
-                // 重置按鈕狀態
                 const btn = document.getElementById('npc-challenge-btn');
                 if(btn) {
                     btn.innerText = "🤖 挑戰最強NPC";
@@ -466,13 +465,10 @@
                 document.getElementById('queue-overlay').style.display = 'none';
                 document.getElementById('emoji-bar').style.display = 'flex';
 
-                // === 新增：啟動NPC計時器 ===
                 clearTimeout(npcWaitTimer);
-                // 測試用：5秒後顯示
                 npcWaitTimer = setTimeout(() => {
                     const btn = document.getElementById('npc-challenge-btn');
                     const playerCountText = document.getElementById('wait-msg').innerText;
-                    // 只在 1/10 人的時候顯示
                     if(playerCountText.includes('(1/10)')) {
                         btn.style.display = 'block';
                     }
@@ -489,7 +485,6 @@
                 document.getElementById('login-screen').style.display = 'flex';
                 document.getElementById('chat-wrapper').style.display = 'none';
                 document.getElementById('chat-messages').innerHTML = '';
-                // 隱藏 NPC 按鈕
                 document.getElementById('npc-challenge-btn').style.display = 'none';
                 clearTimeout(npcWaitTimer);
 
@@ -533,7 +528,6 @@
                 if(msgEl) msgEl.innerText = `房間人數: ${players.map(p=>p.name).join(', ')} (${players.length}/10)`;
                 const btn = document.getElementById('start-btn');
                 
-                // 如果人數 > 1，隱藏 NPC 按鈕 (因為已經有人進來了)
                 if(players.length > 1) {
                     document.getElementById('npc-challenge-btn').style.display = 'none';
                     clearTimeout(npcWaitTimer);
@@ -545,7 +539,6 @@
             
             socket.on('gameStateUpdate', (state) => {
                 unlockInterface();
-                // 遊戲開始後隱藏 NPC 按鈕
                 document.getElementById('npc-challenge-btn').style.display = 'none';
                 clearTimeout(npcWaitTimer);
 
@@ -554,7 +547,6 @@
                 document.getElementById('queue-overlay').style.display = 'none';
                 currentActiveColor = state.topCard.tempColor || (state.topCard.color !== 'black' ? state.topCard.color : null);
                 
-                // === 修復：正確顯示第一張牌 ===
                 renderDiscard(state.topCard);
                 
                 renderOpponents(state.players, state.currentPlayer);
